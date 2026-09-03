@@ -13,13 +13,13 @@ from django.utils import timezone
 from apps.accounts.capabilities import Capability
 from apps.core.models import ModuleKey, SchoolYear, SystemModule
 from apps.dormcalendar.services import today_day
-from apps.inspections.models import InspectionState, MorningSnapshot, RoomCheckSession
+from apps.inspections.models import InspectionState, RoomCheckSession
 from apps.inspections.services.evening import evening_overview
-from apps.leave_permissions.models import LeavePermission
+from apps.leave_permissions.services import rule_for
 from apps.presence.models import StatusType
 from apps.presence.services import ensure_presence_row, presence_summary
 from apps.students.models import ChangeRequestStatus, StudentChangeRequest
-from apps.students.selectors import student_queryset_for_user
+from apps.students.selectors import presence_queryset_for_user
 from apps.weekend.models import StayStatus, WeekendStay, friday_of
 
 
@@ -42,19 +42,18 @@ def _student_dashboard(request):
         "student": student,
         "presence": presence,
         "room": student.current_room,
-        "leave_permission": LeavePermission.objects.filter(student=student).first(),
-        "leave_module_on": SystemModule.is_module_enabled(ModuleKey.LEAVE_PERMISSIONS),
+        "pass_rule": rule_for(student),
+        "pass_module_on": SystemModule.is_module_enabled(ModuleKey.PASS_RULES),
         "weekend_module_on": SystemModule.is_module_enabled(ModuleKey.WEEKEND_STAY),
         "weekend_start": weekend_start,
         "weekend_stay": WeekendStay.objects.filter(
             student=student, weekend_start=weekend_start
         ).first(),
+        # Self-service is a switch: only the action that applies is offered.
+        "is_inside": presence.status.counts_as_inside,
         "leave_statuses": StatusType.objects.student_selectable().filter(
             counts_as_inside=False
         ),
-        "inside_status": StatusType.objects.filter(
-            counts_as_inside=True, is_active=True
-        ).first(),
         "greeting": _greeting(),
     }
     return render(request, "portal/dashboard_student.html", context)
@@ -71,7 +70,7 @@ def _greeting():
 
 def _staff_dashboard(request):
     user = request.user
-    students = student_queryset_for_user(user)
+    students = presence_queryset_for_user(user)
     day = today_day()
     today = day.date
 
@@ -89,18 +88,12 @@ def _staff_dashboard(request):
     ):
         context["evening"] = evening_overview(day)
 
-    if user.has_capability(Capability.VIEW_MORNING_CHECK) and SystemModule.is_module_enabled(
-        ModuleKey.MORNING_CHECK
-    ):
-        context["morning"] = (
-            MorningSnapshot.objects.filter(calendar_day__date=today)
-            .select_related("calendar_day")
-            .first()
-        )
-
     if user.has_capability(Capability.VIEW_ROOM_CHECKS) and SystemModule.is_module_enabled(
         ModuleKey.ROOM_CHECKS
     ):
+        context["today_room_sessions"] = list(
+            RoomCheckSession.objects.filter(date=today).order_by("floor")
+        )
         context["room_sessions"] = RoomCheckSession.objects.filter(
             date__gte=today - dt.timedelta(days=7)
         ).order_by("-date", "floor")[:10]

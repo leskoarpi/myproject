@@ -311,3 +311,39 @@ label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); 
 
 /* Row flash after an inline save. */
 tr.saved > td { background: var(--ok-soft); transition: background .6s ease; }
+
+/* ---------- Monthly worksheet ----------
+   A spreadsheet-shaped grid: labels down the side, days across the top.
+   Scrolls horizontally on screen and fits A4 landscape when printed. */
+table.sheet { font-size: 12px; }
+table.sheet th, table.sheet td { padding: 4px 6px; }
+table.sheet th.day, table.sheet td.day {
+  width: 26px;
+  min-width: 26px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+table.sheet th.weekend, table.sheet td.weekend { background: var(--surface-2); }
+table.sheet .sticky-label {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  z-index: 2;
+  white-space: nowrap;
+}
+table.sheet thead .sticky-label { background: var(--surface-2); z-index: 3; }
+table.sheet tbody tr:hover .sticky-label { background: var(--surface-2); }
+
+.print-title { display: none; }
+
+@media print {
+  .print-title { display: block; margin: 0 0 6px; font-size: 14px; }
+  table.sheet { font-size: 8px; }
+  table.sheet th, table.sheet td { padding: 2px 3px; }
+  table.sheet th.day, table.sheet td.day { width: auto; min-width: 0; }
+  table.sheet .sticky-label { position: static; }
+  table.sheet th.weekend, table.sheet td.weekend {
+    background: #eceff3 !important;
+    -webkit-print-color-adjust: exact;
+  }
+}

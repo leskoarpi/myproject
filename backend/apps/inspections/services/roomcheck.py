@@ -1,4 +1,10 @@
-"""Room / cleanliness inspection workflow (spec sections 25-28)."""
+"""The morning round: room condition and each resident's status, in one pass.
+
+This replaces the former separate morning inspection. A teacher opens the
+floor once, rates each room and sets every resident's morning status on the
+same screen; the status also moves the student's live presence, sourced as
+``room_check`` (spec sections 25-28, reworked).
+"""
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
@@ -7,6 +13,8 @@ from django.utils import timezone
 from apps.accounts.capabilities import Capability
 from apps.audit.services import AuditAction, record_audit
 from apps.core.models import ModuleKey, SystemModule
+from apps.presence.models import PresenceSource, StatusType
+from apps.presence.services import change_student_presence
 from apps.rooms.models import Room
 
 from ..models import (
@@ -20,14 +28,14 @@ from ..models import (
 
 def _require_module():
     if not SystemModule.is_module_enabled(ModuleKey.ROOM_CHECKS):
-        raise PermissionDenied("The room check module is disabled.")
+        raise PermissionDenied("The morning/room check module is disabled.")
 
 
 @transaction.atomic
 def open_room_check_session(*, date, floor, actor):
     _require_module()
     if not actor.has_capability(Capability.EDIT_ROOM_CHECKS):
-        raise PermissionDenied("Missing capability to run room checks.")
+        raise PermissionDenied("Missing capability to run the morning round.")
 
     session, created = RoomCheckSession.objects.get_or_create(
         date=date,
@@ -58,7 +66,7 @@ def save_room_check(*, room_check, actor, rating=None, problems=None, notes=None
         RoomCheck.objects.select_for_update().select_related("session").get(pk=room_check.pk)
     )
     if room_check.session.state == InspectionState.CLOSED:
-        raise ValidationError("This room check session is closed.")
+        raise ValidationError("This session is closed.")
 
     if rating is not None:
         rating = int(rating)
@@ -112,46 +120,108 @@ def save_room_check(*, room_check, actor, rating=None, problems=None, notes=None
 
 
 @transaction.atomic
-def save_room_check_student_result(
-    *,
-    room_check,
-    student,
-    actor,
-    presence_result,
-    detail_code="",
-    departure_time=None,
-    detail_note="",
+def save_student_morning_status(
+    *, room_check, student, actor, status, note="", sync_presence=True
 ):
+    """Record one resident's morning status during the room round.
+
+    Freezes the student's name, room and class onto the result so the sheet
+    stays truthful after a later move or rename, then moves the student's live
+    presence to the same status.
+    """
     _require_module()
     if not actor.has_capability(Capability.EDIT_ROOM_CHECKS):
-        raise PermissionDenied("Missing capability to edit room checks.")
+        raise PermissionDenied("Missing capability to edit the morning round.")
+
+    room_check = (
+        RoomCheck.objects.select_for_update()
+        .select_related("session", "room")
+        .get(pk=room_check.pk)
+    )
     if room_check.session.state == InspectionState.CLOSED:
-        raise ValidationError("This room check session is closed.")
+        raise ValidationError("This session is closed; reopen it before editing.")
+
+    if isinstance(status, str):
+        resolved = StatusType.objects.filter(code=status, is_active=True).first()
+        if resolved is None:
+            raise ValidationError(f"Unknown or inactive status '{status}'.")
+        status = resolved
+
+    room = student.current_room
+    if room is None or room.pk != room_check.room_id:
+        raise ValidationError(
+            f"{student.full_name} is not assigned to room {room_check.room.number}."
+        )
 
     result, _ = RoomCheckStudentResult.objects.update_or_create(
         room_check=room_check,
         student=student,
         defaults={
-            "presence_result": presence_result,
-            "detail_code": detail_code[:32],
-            "departure_time": departure_time,
-            "detail_note": detail_note[:255],
+            "status": status,
+            "student_name": student.full_name,
+            "room_number": room_check.room.number,
+            "school_class": student.school_class,
+            "note": note[:255],
             "saved_by": actor,
             "saved_at": timezone.now(),
         },
     )
+
+    if sync_presence:
+        change_student_presence(
+            student=student,
+            new_status=status,
+            actor=actor,
+            reason=note or "Reggeli ellenőrzés",
+            source=PresenceSource.ROOM_CHECK,
+            enforce_permissions=False,
+        )
+
+    session = room_check.session
+    session.last_activity_at = timezone.now()
+    session.save(update_fields=["last_activity_at", "updated_at"])
     return result
 
 
+def room_check_progress(session):
+    """How far along one floor's morning round is."""
+    from apps.rooms.services import students_on_floor
+
+    rooms_total = session.checks.count()
+    rooms_done = session.checks.filter(checked_at__isnull=False).count()
+    students_total = students_on_floor(session.floor).count()
+    students_done = RoomCheckStudentResult.objects.filter(
+        room_check__session=session, status__isnull=False
+    ).count()
+
+    total = rooms_total + students_total
+    done = rooms_done + students_done
+    return {
+        "rooms_total": rooms_total,
+        "rooms_done": rooms_done,
+        "students_total": students_total,
+        "students_done": students_done,
+        "students_missing": max(students_total - students_done, 0),
+        "complete": total > 0 and done >= total,
+        "percent": int(round(100 * done / total)) if total else 0,
+    }
+
+
 @transaction.atomic
-def close_room_check_session(*, session, actor):
+def close_room_check_session(*, session, actor, allow_incomplete=False):
     _require_module()
     if not actor.has_capability(Capability.EDIT_ROOM_CHECKS):
-        raise PermissionDenied("Missing capability to close room checks.")
+        raise PermissionDenied("Missing capability to close the morning round.")
 
     session = RoomCheckSession.objects.select_for_update().get(pk=session.pk)
     if session.state == InspectionState.CLOSED:
         return session
+
+    progress = room_check_progress(session)
+    if progress["students_missing"] and not allow_incomplete:
+        raise ValidationError(
+            f"{progress['students_missing']} diáknak még nincs reggeli státusza ezen az emeleten."
+        )
 
     session.state = InspectionState.CLOSED
     session.closed_by = actor
@@ -161,7 +231,7 @@ def close_room_check_session(*, session, actor):
     session.save(
         update_fields=["state", "closed_by", "closed_at", "locked_by", "locked_at", "updated_at"]
     )
-    record_audit(user=actor, action=AuditAction.CLOSE, target=session)
+    record_audit(user=actor, action=AuditAction.CLOSE, target=session, new_value=progress)
     return session
 
 
@@ -169,7 +239,7 @@ def close_room_check_session(*, session, actor):
 def reopen_room_check_session(*, session, actor, reason=""):
     _require_module()
     if not actor.has_capability(Capability.REOPEN_ROOM_CHECKS):
-        raise PermissionDenied("Missing capability to reopen room checks.")
+        raise PermissionDenied("Missing capability to reopen the morning round.")
 
     session = RoomCheckSession.objects.select_for_update().get(pk=session.pk)
     if session.state == InspectionState.OPEN:
@@ -188,16 +258,14 @@ def reopen_room_check_session(*, session, actor, reason=""):
 
 def room_check_queryset_for_user(user):
     """Students see only their own room's checks (spec section 57)."""
-    from apps.accounts.capabilities import Capability as Cap
-
     base = RoomCheck.objects.select_related("room", "session", "checked_by")
     if not user.is_authenticated:
         return base.none()
-    if user.has_capability(Cap.VIEW_ROOM_CHECKS) or user.has_capability(
-        Cap.VIEW_ROOM_CHECK_HISTORY
+    if user.has_capability(Capability.VIEW_ROOM_CHECKS) or user.has_capability(
+        Capability.VIEW_ROOM_CHECK_HISTORY
     ):
         return base
-    if user.has_capability(Cap.VIEW_OWN_ROOM_CHECKS):
+    if user.has_capability(Capability.VIEW_OWN_ROOM_CHECKS):
         profile = getattr(user, "student_profile", None)
         room = profile.current_room if profile else None
         return base.filter(room=room) if room else base.none()

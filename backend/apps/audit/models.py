@@ -25,7 +25,7 @@ class AuditLog(models.Model):
     """Who did what to which record.
 
     Deliberately separate from domain history (PresenceEvent,
-    LeavePermissionHistory, ...) - see spec section 46. Values are redacted
+    PassRuleHistory, ...) - see spec section 46. Values are redacted
     before they land here; see :mod:`apps.audit.services`.
     """
 

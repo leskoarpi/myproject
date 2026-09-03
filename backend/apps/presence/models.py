@@ -13,7 +13,9 @@ class PresenceSource(models.TextChoices):
     PORTER = "porter", "Portás"
     ADMIN = "admin", "Adminisztrátor"
     EVENING_CHECK = "evening_check", "Esti ellenőrzés"
-    MORNING_CHECK = "morning_check", "Reggeli ellenőrzés"
+    # Retired source: the morning round now records as ROOM_CHECK. Kept so
+    # events written before the September 2026 rework still render.
+    MORNING_CHECK = "morning_check", "Reggeli ellenőrzés (régi)"
     ROOM_CHECK = "room_check", "Szobaellenőrzés"
     WEEKEND_CHECK = "weekend_check", "Hétvégi ellenőrzés"
     IMPORT = "import", "Importálás"

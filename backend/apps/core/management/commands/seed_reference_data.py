@@ -16,21 +16,39 @@ from apps.presence.models import StatusType
 STATUS_TYPES = [
     # code, label, short, color, counts_as_inside, student_selectable, order
     ("inside", "Bent", "B", "#1a7f52", True, True, 10),
+    # Recorded during the morning round when there is no school that day and
+    # the student stays in the building.
+    ("no_school", "Nincs tanítás", "NT", "#0f766e", True, False, 15),
     ("outside", "Kint", "K", "#9a6407", False, True, 20),
     ("home", "Hazament", "H", "#7c3aed", False, True, 30),
     ("school", "Iskolában", "I", "#1f4e79", False, True, 40),
     ("doctor", "Orvosnál", "O", "#0e7490", False, True, 50),
     ("night_leave", "Éjszakai kimenő", "É", "#b45309", False, True, 60),
+    ("absent", "Hiányzik", "X", "#b3261e", False, False, 65),
     ("other", "Egyéb", "E", "#64748b", False, True, 70),
 ]
 
 MODULES = [
     (ModuleKey.EVENING_CHECK, "Esti ellenőrzés", "Emeletenkénti esti jelenlét-ellenőrzés."),
-    (ModuleKey.MORNING_CHECK, "Reggeli ellenőrzés", "Reggeli pillanatkép és felülvizsgálat."),
-    (ModuleKey.ROOM_CHECKS, "Szobaellenőrzés", "Szobák rendjének ellenőrzése és értékelése."),
-    (ModuleKey.WEEKEND_STAY, "Hétvégi bennmaradás", "Hétvégi jelentkezés, elbírálás, ellenőrzések."),
-    (ModuleKey.LEAVE_PERMISSIONS, "Kimenő engedélyek", "Kimenő engedélyek és lejáratuk."),
+    (
+        ModuleKey.ROOM_CHECKS,
+        "Reggeli és szobaellenőrzés",
+        "Szobarend értékelése és a lakók reggeli státusza egy menetben.",
+    ),
+    (
+        ModuleKey.WEEKEND_STAY,
+        "Hétvégi bennmaradás",
+        "Hétvégi jelentkezés, elbírálás és éjszakai ellenőrzések.",
+    ),
+    (
+        ModuleKey.PASS_RULES,
+        "Kimenő jogosultság",
+        "Ki kaphat kimenőt és kitől - minden nevelőtanár és vezető látja.",
+    ),
 ]
+
+# Module rows left behind by the earlier design.
+RETIRED_MODULE_KEYS = ["morning_check", "leave_permissions"]
 
 
 class Command(BaseCommand):
@@ -60,6 +78,9 @@ class Command(BaseCommand):
                 },
             )
             created_statuses += int(created)
+
+        # Drop modules that no longer exist so they cannot be toggled.
+        SystemModule.objects.filter(key__in=RETIRED_MODULE_KEYS).delete()
 
         created_modules = 0
         for key, name, description in MODULES:

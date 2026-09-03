@@ -1,73 +1,52 @@
 {% extends "base.html" %}
-{% block title %}Kimenő engedélyek{% endblock %}
+{% block title %}Kimenő jogosultság{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Kimenő engedélyek</h1><p class="subtitle">Aktuális engedélyek — minden változás naplózódik</p></div>
-  <a class="btn" href="{% url 'leave:history' %}">Előzmények</a>
+  <div><h1>Kimenő jogosultság</h1>
+    <p class="subtitle">Ki kaphat kimenőt és kitől — a teljes kollégium, nem csak a saját csoportod</p></div>
+  <a class="btn" href="{% url 'passes:history' %}">Előzmények</a>
 </div>
 
 <form class="filters" method="get">
-  <div><label for="q">Diák</label><input type="search" id="q" name="q" value="{{ search }}"></div>
-  <div><label for="status">Állapot</label>
-    <select id="status" name="status"><option value="">Mind</option>
-      {% for value, label in statuses %}<option value="{{ value }}" {% if value == selected_status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  <div><label for="q">Diák vagy megjegyzés</label><input type="search" id="q" name="q" value="{{ search }}"></div>
+  <div><label for="eligibility">Beállítás</label>
+    <select id="eligibility" name="eligibility"><option value="">Mind</option>
+      {% for value, label in choices %}<option value="{{ value }}" {% if value == selected %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select></div>
+  <div class="checkline">
+    <input type="checkbox" id="restricted" name="restricted" value="1" {% if restricted_only %}checked{% endif %}>
+    <label for="restricted">Csak korlátozottak</label>
+  </div>
   <div><button class="btn primary" type="submit">Szűrés</button></div>
 </form>
 
 <div class="card" style="padding:0">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Diák</th><th>Állapot</th><th>Típus</th><th>Részletek</th><th>Lejárat</th>{% if can_manage %}<th></th>{% endif %}</tr></thead>
+      <thead><tr><th>Szoba</th><th>Diák</th><th>Csoport</th><th>Beállítás</th><th>Megjegyzés</th><th>Beállította</th>{% if can_manage %}<th></th>{% endif %}</tr></thead>
       <tbody>
-      {% for p in permissions %}
+      {% for rule in page %}
         <tr>
-          <td>{{ p.student.full_name }}</td>
-          <td><span class="badge {% if p.status == 'active' %}ok{% elif p.status == 'expired' or p.status == 'revoked' %}bad{% endif %}">{{ p.get_status_display }}</span></td>
-          <td class="small">{{ p.get_permission_type_display|default:"—" }}</td>
-          <td class="small">{{ p.value|default:"—" }}</td>
-          <td class="small mono">{{ p.expires_at|date:"Y. m. d. H:i"|default:"—" }}</td>
+          <td class="mono">{{ rule.student.current_room.number|default:"—" }}</td>
+          <td><a href="{% url 'passes:student' student_id=rule.student_id %}">{{ rule.student.full_name }}</a></td>
+          <td class="small muted">{{ rule.student.group.code|default:"—" }}</td>
+          <td><span class="badge {{ rule.badge_class }}">{{ rule.get_eligibility_display }}</span></td>
+          <td class="small">{{ rule.note|default:"—" }}</td>
+          <td class="small muted">{{ rule.set_by.display_name|default:"—" }}<div>{{ rule.set_at|date:"Y. m. d." }}</div></td>
           {% if can_manage %}
-          <td class="nowrap">
-            {% if p.is_active %}
-            <form method="post" action="{% url 'leave:revoke' student_id=p.student_id %}" data-confirm="Visszavonod az engedélyt?">
-              {% csrf_token %}<button class="btn small" type="submit">Visszavonás</button>
-            </form>
+          <td>
+            {% if rule.student_id in editable_ids %}
+              <a class="btn small" href="{% url 'passes:student' student_id=rule.student_id %}">Beállítás</a>
+            {% else %}
+              <span class="small muted" title="Csak a diák saját nevelőtanára vagy a vezetőség állíthatja">nem a te csoportod</span>
             {% endif %}
           </td>
           {% endif %}
         </tr>
-      {% empty %}<tr><td colspan="6" class="empty">Nincs engedély.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="7" class="empty">Nincs találat.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </div>
-
-{% if can_manage %}
-<div class="card">
-  <h2>Engedély kiadása</h2>
-  <p class="small muted">Válaszd ki a diákot, majd add meg az engedély részleteit.</p>
-  {% for student in students_without|slice:":50" %}
-    <form method="post" action="{% url 'leave:grant' student_id=student.pk %}" id="grant-{{ student.pk }}">{% csrf_token %}</form>
-  {% endfor %}
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Diák</th><th>Típus</th><th>Részletek</th><th>Lejárat</th><th></th></tr></thead>
-      <tbody>
-      {% for student in students_without|slice:":50" %}
-        <tr>
-          <td>{{ student.full_name }}</td>
-          <td><select name="permission_type" form="grant-{{ student.pk }}">
-              {% for value, label in types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-            </select></td>
-          <td><input type="text" name="value" maxlength="255" form="grant-{{ student.pk }}"></td>
-          <td><input type="datetime-local" name="expires_at" form="grant-{{ student.pk }}"></td>
-          <td><button class="btn small primary" type="submit" form="grant-{{ student.pk }}">Kiadás</button></td>
-        </tr>
-      {% empty %}<tr><td colspan="5" class="empty">Minden diáknak van már engedély-rekordja.</td></tr>{% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
+{% include "_pagination.html" %}
 {% endblock %}

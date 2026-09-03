@@ -9,16 +9,16 @@ import datetime as dt
 
 from django.db.models import Avg, Count, Q
 
-from apps.inspections.models import MorningResult, MorningSnapshot, RoomCheck
-from apps.leave_permissions.models import LeavePermission, LeavePermissionHistory
+from apps.inspections.models import RoomCheck
+from apps.leave_permissions.models import PassRuleHistory, StudentPassRule
 from apps.presence.models import PresenceEvent, StudentPresence
 from apps.rooms.models import Room
-from apps.students.selectors import student_queryset_for_user
+from apps.students.selectors import presence_queryset_for_user, student_queryset_for_user
 from apps.weekend.models import WeekendStay
 
 
 def current_presence_report(user):
-    students = student_queryset_for_user(user)
+    students = presence_queryset_for_user(user)
     rows = (
         StudentPresence.objects.filter(student__in=students)
         .select_related("student", "status", "student__group")
@@ -40,7 +40,7 @@ def current_presence_report(user):
 
 
 def presence_history_report(user, *, start=None, end=None, student=None):
-    students = student_queryset_for_user(user)
+    students = presence_queryset_for_user(user)
     events = PresenceEvent.objects.filter(student__in=students).select_related(
         "student", "old_status", "new_status", "created_by"
     )
@@ -79,45 +79,6 @@ def occupancy_report():
         }
         for r in rooms
     ]
-
-
-def morning_report(snapshot):
-    items = snapshot.items.all()
-    return [
-        {
-            "name": i.student_name,
-            "room": i.room_number,
-            "floor": i.floor,
-            "class": i.school_class,
-            "evening": i.evening_status_label,
-            "cutoff": i.cutoff_status_label,
-            "calculated": i.get_calculated_result_display(),
-            "final": i.get_final_result_display(),
-            "reviewed": i.is_reviewed,
-            "note": i.note,
-        }
-        for i in items
-    ]
-
-
-def morning_absence_summary(*, start, end):
-    """How often each student was recorded absent over a period."""
-    snapshots = MorningSnapshot.objects.filter(
-        calendar_day__date__gte=start, calendar_day__date__lte=end
-    )
-    from apps.inspections.models import MorningSnapshotItem
-
-    rows = (
-        MorningSnapshotItem.objects.filter(snapshot__in=snapshots)
-        .values("student_id", "student_name")
-        .annotate(
-            absences=Count("id", filter=Q(final_result=MorningResult.ABSENT)),
-            left_overnight=Count("id", filter=Q(final_result=MorningResult.LEFT_OVERNIGHT)),
-            total=Count("id"),
-        )
-        .order_by("-absences", "student_name")
-    )
-    return list(rows)
 
 
 def room_check_report(*, start=None, end=None):
@@ -170,29 +131,27 @@ def weekend_stay_report(weekend_start):
     ]
 
 
-def leave_permission_report(user):
-    from apps.leave_permissions.services import leave_permission_queryset_for_user
+def pass_rule_report(user):
+    """Who may be given a pass. Dormitory-wide for staff, like the screen."""
+    from apps.leave_permissions.services import pass_rule_queryset_for_user
 
-    permissions = leave_permission_queryset_for_user(user)
+    rules = pass_rule_queryset_for_user(user)
     return [
         {
-            "name": p.student.full_name,
-            "status": p.get_status_display(),
-            "type": p.get_permission_type_display(),
-            "value": p.value,
-            "granted_at": p.granted_at,
-            "expires_at": p.expires_at,
-            "granted_by": p.granted_by.display_name if p.granted_by else "",
+            "room": r.student.current_room.number if r.student.current_room else "",
+            "name": r.student.full_name,
+            "group": r.student.group.code if r.student.group else "",
+            "eligibility": r.get_eligibility_display(),
+            "note": r.note,
+            "set_by": r.set_by.display_name if r.set_by else "",
+            "set_at": r.set_at,
         }
-        for p in permissions.order_by("student__full_name")
+        for r in rules.order_by("student__full_name")
     ]
 
 
-def leave_permission_history_report(user, *, start=None, end=None):
-    students = student_queryset_for_user(user)
-    entries = LeavePermissionHistory.objects.filter(student__in=students).select_related(
-        "student", "created_by"
-    )
+def pass_rule_history_report(user, *, start=None, end=None):
+    entries = PassRuleHistory.objects.select_related("student", "created_by")
     if start:
         entries = entries.filter(created_at__date__gte=start)
     if end:
@@ -200,10 +159,9 @@ def leave_permission_history_report(user, *, start=None, end=None):
     return [
         {
             "name": e.student.full_name,
-            "action": e.get_action_display(),
-            "from": e.previous_status,
-            "to": e.new_status,
-            "value": e.new_value,
+            "from": e.previous_label,
+            "to": e.new_label,
+            "note": e.new_note,
             "at": e.created_at,
             "by": e.created_by.display_name if e.created_by else "rendszer",
         }
@@ -216,7 +174,5 @@ def default_period():
     return today - dt.timedelta(days=30), today
 
 
-def active_permission_count():
-    from apps.leave_permissions.models import PermissionStatus
-
-    return LeavePermission.objects.filter(status=PermissionStatus.ACTIVE).count()
+def restricted_pass_count():
+    return StudentPassRule.objects.restricted().count()

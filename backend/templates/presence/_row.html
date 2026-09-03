@@ -3,6 +3,18 @@
   <td class="mono">{{ presence.student.current_room.number|default:"—" }}</td>
   <td class="nowrap"><span class="status-dot" style="background: {{ presence.status.color }}"></span>{{ presence.status.label }}</td>
   <td class="small muted nowrap">{{ presence.changed_at|date:"m. d. H:i" }}</td>
+  {% if show_pass_rules %}
+  <td class="nowrap">
+    {% with rule=presence.student.pass_rule %}
+      {% if rule %}
+        <a href="{% url 'passes:student' student_id=presence.student_id %}"
+           class="badge {{ rule.badge_class }}"{% if rule.note %} title="{{ rule.note }}"{% endif %}>
+          {{ rule.get_eligibility_display }}
+        </a>
+      {% else %}<span class="muted">—</span>{% endif %}
+    {% endwith %}
+  </td>
+  {% endif %}
   {% if can_edit %}
   <td>
     <form method="post" action="{% url 'presence:set_status' student_id=presence.student_id %}"

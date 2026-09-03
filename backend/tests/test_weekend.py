@@ -167,12 +167,12 @@ def test_check_session_only_covers_the_relevant_night(setup):
 
     friday_session = open_weekend_check_session(
         weekend_start=FRIDAY,
-        check_type=WeekendCheckType.FRIDAY_EVENING,
+        check_type=WeekendCheckType.FRIDAY_NIGHT,
         actor=setup["management"],
     )
     saturday_session = open_weekend_check_session(
         weekend_start=FRIDAY,
-        check_type=WeekendCheckType.SATURDAY_EVENING,
+        check_type=WeekendCheckType.SATURDAY_NIGHT,
         actor=setup["management"],
     )
 
@@ -188,7 +188,7 @@ def test_recording_and_closing_a_check(setup):
     review_weekend_stay(stay=stay, actor=setup["management"], approve=True)
     session = open_weekend_check_session(
         weekend_start=FRIDAY,
-        check_type=WeekendCheckType.FRIDAY_EVENING,
+        check_type=WeekendCheckType.FRIDAY_NIGHT,
         actor=setup["management"],
     )
 
@@ -213,6 +213,20 @@ def test_recording_and_closing_a_check(setup):
     record_weekend_check(
         session=session, stay=stay, actor=setup["management"], result=WeekendCheckResult.OUTSIDE
     )
+
+
+def test_weekends_have_nightly_checks_only(setup):
+    """The Saturday- and Sunday-morning rounds were dropped."""
+    assert set(WeekendCheckType.values) == {"friday_evening", "saturday_evening"}
+    assert [label for _, label in WeekendCheckType.choices] == [
+        "Péntek éjszaka",
+        "Szombat éjszaka",
+    ]
+
+    with pytest.raises(ValidationError):
+        open_weekend_check_session(
+            weekend_start=FRIDAY, check_type="sunday_morning", actor=setup["management"]
+        )
 
 
 def test_roster_carries_every_check_column(setup):
@@ -240,7 +254,7 @@ def test_roster_carries_every_check_column(setup):
     rows = weekend_roster(FRIDAY)
     assert len(rows) == 1
     row = rows[0]
-    for key in ("friday_evening", "saturday_morning", "saturday_evening", "sunday_morning"):
+    for key in ("friday_night", "saturday_night"):
         assert row[key] is not None
         assert row[key].result == WeekendCheckResult.INSIDE
 

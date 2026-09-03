@@ -43,7 +43,6 @@ NAVIGATION = [
         "inspections:evening_index",
         capabilities=(
             Capability.VIEW_EVENING_CHECK,
-            Capability.VIEW_MORNING_CHECK,
             Capability.VIEW_ROOM_CHECKS,
         ),
         icon="clipboard",
@@ -54,16 +53,17 @@ NAVIGATION = [
                 (Capability.VIEW_EVENING_CHECK,),
                 module=ModuleKey.EVENING_CHECK,
             ),
+            # Room condition and each resident's morning status, one screen.
             NavItem(
                 "Reggeli ellenőrzés",
-                "inspections:morning_index",
-                (Capability.VIEW_MORNING_CHECK,),
-                module=ModuleKey.MORNING_CHECK,
-            ),
-            NavItem(
-                "Szobaellenőrzés",
                 "inspections:roomcheck_index",
                 (Capability.VIEW_ROOM_CHECKS,),
+                module=ModuleKey.ROOM_CHECKS,
+            ),
+            NavItem(
+                "Szobarend előzmények",
+                "inspections:roomcheck_history",
+                (Capability.VIEW_ROOM_CHECK_HISTORY,),
                 module=ModuleKey.ROOM_CHECKS,
             ),
         ],
@@ -76,10 +76,10 @@ NAVIGATION = [
         icon="calendar",
     ),
     NavItem(
-        "Kimenő engedélyek",
-        "leave:index",
-        capabilities=(Capability.VIEW_LEAVE_PERMISSIONS,),
-        module=ModuleKey.LEAVE_PERMISSIONS,
+        "Kimenő jogosultság",
+        "passes:index",
+        capabilities=(Capability.VIEW_PASS_RULES,),
+        module=ModuleKey.PASS_RULES,
         icon="key",
     ),
     NavItem(
@@ -145,6 +145,13 @@ STUDENT_NAVIGATION = [
         capabilities=(Capability.VIEW_OWN_ROOM_CHECKS,),
         module=ModuleKey.ROOM_CHECKS,
         icon="clipboard",
+    ),
+    NavItem(
+        "Kimenő jogosultságom",
+        "passes:mine",
+        capabilities=(Capability.VIEW_OWN_PASS_RULE,),
+        module=ModuleKey.PASS_RULES,
+        icon="key",
     ),
     NavItem("Profil", "accounts:profile", icon="user"),
 ]

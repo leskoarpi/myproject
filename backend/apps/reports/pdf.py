@@ -52,11 +52,9 @@ def weekend_roster_pdf(weekend_start, rows):
         "Név",
         "Csoport",
         "P. bent",
-        "P. este",
-        "Szo. reggel",
+        "P. éjszaka",
         "Szo. bent",
-        "Szo. este",
-        "V. reggel",
+        "Szo. éjszaka",
         "Megjegyzés",
     ]
     data = [header]
@@ -67,12 +65,10 @@ def weekend_roster_pdf(weekend_start, rows):
                 row["name"],
                 row["group"],
                 "X" if row["friday_stay"] else "",
-                _cell(row["friday_evening"]),
-                _cell(row["saturday_morning"]),
+                _cell(row["friday_night"]),
                 "X" if row["saturday_stay"] else "",
-                _cell(row["saturday_evening"]),
-                _cell(row["sunday_morning"]),
-                (row["note"] or "")[:40],
+                _cell(row["saturday_night"]),
+                (row["note"] or "")[:60],
             ]
         )
 
@@ -80,8 +76,7 @@ def weekend_roster_pdf(weekend_start, rows):
         data,
         repeatRows=1,
         colWidths=[
-            18 * mm, 55 * mm, 30 * mm, 18 * mm, 20 * mm,
-            24 * mm, 20 * mm, 22 * mm, 24 * mm, 45 * mm,
+            20 * mm, 62 * mm, 34 * mm, 22 * mm, 26 * mm, 24 * mm, 28 * mm, 60 * mm,
         ],
     )
     table.setStyle(
@@ -93,7 +88,7 @@ def weekend_roster_pdf(weekend_start, rows):
                 ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#94a3b8")),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f1f5f9")]),
-                ("ALIGN", (3, 1), (8, -1), "CENTER"),
+                ("ALIGN", (3, 1), (6, -1), "CENTER"),
             ]
         )
     )

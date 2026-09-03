@@ -81,8 +81,14 @@ def test_student_can_change_only_their_own_presence(statuses):
     student_a = f.make_student()
     student_b = f.make_student()
 
+    # Acting on yourself is fine.
+    student_leave(student=student_a, actor=student_a.user, status_code="home")
     student_return(student=student_a, actor=student_a.user)
 
+    # Acting on someone else is refused on either side of the switch, and the
+    # refusal comes before any hint about the other student's state.
+    with pytest.raises(PermissionDenied):
+        student_leave(student=student_b, actor=student_a.user, status_code="home")
     with pytest.raises(PermissionDenied):
         student_return(student=student_b, actor=student_a.user)
 
@@ -96,22 +102,52 @@ def test_student_leave_requires_a_leaving_status(student):
     assert event.source == PresenceSource.STUDENT
 
 
+def test_self_service_is_a_switch(student):
+    """Pressing the same side twice is refused, not silently duplicated."""
+    ensure_presence_row(student)
+
+    # Inside: coming in again makes no sense.
+    with pytest.raises(ValidationError):
+        student_return(student=student, actor=student.user)
+
+    student_leave(student=student, actor=student.user, status_code="home")
+
+    # Outside: going out again makes no sense either.
+    with pytest.raises(ValidationError):
+        student_leave(student=student, actor=student.user, status_code="doctor")
+
+    student_return(student=student, actor=student.user)
+    student.refresh_from_db()
+    assert student.presence.status.counts_as_inside is True
+    assert PresenceEvent.objects.filter(student=student).count() == 2
+
+
+def test_the_switch_survives_a_double_tap(student):
+    """A stale page or an impatient double tap records one event, not two."""
+    student_leave(student=student, actor=student.user, status_code="home")
+    with pytest.raises(ValidationError):
+        student_leave(student=student, actor=student.user, status_code="home")
+    assert PresenceEvent.objects.filter(student=student).count() == 1
+
+
 def test_porter_cannot_modify_presence(student):
     porter = f.make_user(Role.PORTER)
     with pytest.raises(PermissionDenied):
         change_student_presence(student=student, new_status="outside", actor=porter)
 
 
-def test_teacher_cannot_modify_presence_outside_their_groups(statuses):
+def test_teacher_covers_the_whole_dormitory_for_presence(statuses):
+    """Presence is a building-wide concern: the duty teacher is not limited to
+    their own group here, unlike access to the student record."""
     group_a = f.make_group()
     group_b = f.make_group()
     teacher = f.make_teacher(group=group_a)
+    own = f.make_student(group=group_a)
     outsider = f.make_student(group=group_b)
 
-    with pytest.raises(PermissionDenied):
-        change_student_presence(student=outsider, new_status="outside", actor=teacher.user)
-
-    own = f.make_student(group=group_a)
     assert change_student_presence(
         student=own, new_status="outside", actor=teacher.user
+    ) is not None
+    assert change_student_presence(
+        student=outsider, new_status="outside", actor=teacher.user
     ) is not None

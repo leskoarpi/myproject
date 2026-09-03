@@ -14,35 +14,23 @@ from apps.dormcalendar.services import get_or_create_day
 from apps.presence.models import StatusType
 from apps.rooms.services import floors, students_on_floor
 
-from .models import (
-    EveningCheckSession,
-    InspectionState,
-    MorningResult,
-    MorningSnapshot,
-    RoomCheck,
-    RoomCheckPresence,
-    RoomCheckSession,
-)
+from .models import EveningCheckSession, RoomCheck, RoomCheckSession
 from .services import (
     acquire_session_lock,
     close_evening_session,
-    close_morning_snapshot,
     close_room_check_session,
-    generate_morning_snapshot,
     open_evening_session,
     open_room_check_session,
     release_session_lock,
     reopen_evening_session,
-    reopen_morning_snapshot,
     reopen_room_check_session,
-    review_morning_item,
+    room_check_progress,
+    room_check_queryset_for_user,
     save_evening_result,
     save_room_check,
-    save_room_check_student_result,
+    save_student_morning_status,
 )
 from .services.evening import evening_overview, evening_session_progress
-from .services.morning import morning_summary
-from .services.roomcheck import room_check_queryset_for_user
 
 
 def _msg(exc):
@@ -218,127 +206,7 @@ def evening_release_lock(request, session_id):
 
 
 # --------------------------------------------------------------------------
-# Morning
-# --------------------------------------------------------------------------
-
-
-@login_required
-@require_module(ModuleKey.MORNING_CHECK)
-@require_capabilities(Capability.VIEW_MORNING_CHECK)
-def morning_index(request):
-    snapshots = MorningSnapshot.objects.select_related("calendar_day", "month")[:60]
-    return render(
-        request,
-        "inspections/morning_index.html",
-        {
-            "snapshots": snapshots,
-            "can_generate": request.user.has_capability(Capability.EDIT_MORNING_CHECK),
-            "today": timezone.localdate(),
-        },
-    )
-
-
-@login_required
-@require_module(ModuleKey.MORNING_CHECK)
-@require_capabilities(Capability.VIEW_MORNING_CHECK)
-def morning_detail(request, snapshot_id):
-    snapshot = get_object_or_404(
-        MorningSnapshot.objects.select_related("calendar_day"), pk=snapshot_id
-    )
-    items = snapshot.items.select_related("reviewed_by")
-    result_filter = request.GET.get("result", "")
-    if result_filter:
-        items = items.filter(final_result=result_filter)
-
-    return render(
-        request,
-        "inspections/morning_detail.html",
-        {
-            "snapshot": snapshot,
-            "items": items,
-            "summary": morning_summary(snapshot),
-            "results": MorningResult.choices,
-            "selected_result": result_filter,
-            "can_edit": request.user.has_capability(Capability.EDIT_MORNING_CHECK)
-            and snapshot.is_open,
-            "can_reopen": request.user.has_capability(Capability.REOPEN_MORNING_CHECK),
-        },
-    )
-
-
-@login_required
-@require_POST
-@require_module(ModuleKey.MORNING_CHECK)
-def morning_generate(request):
-    day = _parse_date(request.POST.get("date"))
-    if not request.user.has_capability(Capability.EDIT_MORNING_CHECK):
-        raise PermissionDenied("Missing capability.")
-    try:
-        snapshot = generate_morning_snapshot(day, actor=request.user)
-        messages.success(request, f"Pillanatkép kész: {snapshot.date:%Y-%m-%d}.")
-        return redirect("inspections:morning_detail", snapshot_id=snapshot.pk)
-    except (PermissionDenied, ValidationError) as exc:
-        messages.error(request, _msg(exc))
-        return redirect("inspections:morning_index")
-
-
-@login_required
-@require_POST
-@require_module(ModuleKey.MORNING_CHECK)
-def morning_review_item(request, item_id):
-    from .models import MorningSnapshotItem
-
-    item = get_object_or_404(MorningSnapshotItem.objects.select_related("snapshot"), pk=item_id)
-    try:
-        item = review_morning_item(
-            item=item,
-            actor=request.user,
-            final_result=request.POST.get("final_result") or None,
-            note=request.POST.get("note"),
-        )
-    except (PermissionDenied, ValidationError) as exc:
-        messages.error(request, _msg(exc))
-        return redirect("inspections:morning_detail", snapshot_id=item.snapshot_id)
-
-    if request.headers.get("X-Partial"):
-        return render(
-            request,
-            "inspections/_morning_row.html",
-            {"item": item, "results": MorningResult.choices, "can_edit": True},
-        )
-    return redirect("inspections:morning_detail", snapshot_id=item.snapshot_id)
-
-
-@login_required
-@require_POST
-@require_module(ModuleKey.MORNING_CHECK)
-def morning_close(request, snapshot_id):
-    snapshot = get_object_or_404(MorningSnapshot, pk=snapshot_id)
-    try:
-        close_morning_snapshot(snapshot=snapshot, actor=request.user)
-        messages.success(request, "A reggeli ellenőrzés lezárva.")
-    except (PermissionDenied, ValidationError) as exc:
-        messages.error(request, _msg(exc))
-    return redirect("inspections:morning_detail", snapshot_id=snapshot_id)
-
-
-@login_required
-@require_POST
-@require_module(ModuleKey.MORNING_CHECK)
-def morning_reopen(request, snapshot_id):
-    snapshot = get_object_or_404(MorningSnapshot, pk=snapshot_id)
-    try:
-        reopen_morning_snapshot(
-            snapshot=snapshot, actor=request.user, reason=request.POST.get("reason", "")
-        )
-        messages.success(request, "A reggeli ellenőrzés újranyitva.")
-    except (PermissionDenied, ValidationError) as exc:
-        messages.error(request, _msg(exc))
-    return redirect("inspections:morning_detail", snapshot_id=snapshot_id)
-
-
-# --------------------------------------------------------------------------
-# Room checks
+# Morning round: room condition + resident status on one screen
 # --------------------------------------------------------------------------
 
 
@@ -348,7 +216,16 @@ def morning_reopen(request, snapshot_id):
 def roomcheck_index(request):
     date = _parse_date(request.GET.get("date"))
     sessions = {s.floor: s for s in RoomCheckSession.objects.filter(date=date)}
-    rows = [{"floor": f, "session": sessions.get(f)} for f in floors()]
+    rows = []
+    for floor in floors():
+        session = sessions.get(floor)
+        rows.append(
+            {
+                "floor": floor,
+                "session": session,
+                "progress": room_check_progress(session) if session else None,
+            }
+        )
     return render(
         request,
         "inspections/roomcheck_index.html",
@@ -369,12 +246,12 @@ def roomcheck_floor(request, date, floor):
     session = RoomCheckSession.objects.filter(date=day, floor=floor).first()
     if session is None:
         if not request.user.has_capability(Capability.EDIT_ROOM_CHECKS):
-            messages.info(request, "Erre a napra még nincs szobaellenőrzés.")
+            messages.info(request, "Erre a napra még nem indult reggeli ellenőrzés.")
             return redirect("inspections:roomcheck_index")
         session = open_room_check_session(date=day, floor=floor, actor=request.user)
 
     checks = session.checks.select_related("room", "checked_by").prefetch_related(
-        "student_results__student"
+        "student_results__student", "student_results__status"
     )
     students_by_room = {}
     for student in students_on_floor(floor):
@@ -382,8 +259,8 @@ def roomcheck_floor(request, date, floor):
         if room:
             students_by_room.setdefault(room.pk, []).append(student)
 
-    # Pair each room's check row with its residents and any saved results, so
-    # the template only has to iterate.
+    # Pair each room with its residents and any status already recorded, so the
+    # template only has to iterate.
     rows = []
     for check in checks:
         results = {r.student_id: r for r in check.student_results.all()}
@@ -405,7 +282,8 @@ def roomcheck_floor(request, date, floor):
             "date": day,
             "floor": floor,
             "rows": rows,
-            "presence_choices": RoomCheckPresence.choices,
+            "statuses": StatusType.objects.active(),
+            "progress": room_check_progress(session),
             "rating_range": range(RoomCheck.RATING_MIN, RoomCheck.RATING_MAX + 1),
             "can_edit": request.user.has_capability(Capability.EDIT_ROOM_CHECKS)
             and session.is_open,
@@ -439,20 +317,49 @@ def roomcheck_save(request, check_id):
 @require_POST
 @require_module(ModuleKey.ROOM_CHECKS)
 def roomcheck_save_student(request, check_id, student_id):
+    """Set one resident's morning status from the room round."""
     check = get_object_or_404(RoomCheck.objects.select_related("session"), pk=check_id)
     student = get_object_or_404(students_on_floor(check.session.floor), pk=student_id)
     try:
-        save_room_check_student_result(
+        result = save_student_morning_status(
             room_check=check,
             student=student,
             actor=request.user,
-            presence_result=request.POST.get("presence_result", RoomCheckPresence.UNKNOWN),
-            detail_code=request.POST.get("detail_code", ""),
-            departure_time=request.POST.get("departure_time") or None,
-            detail_note=request.POST.get("detail_note", ""),
+            status=request.POST.get("status", ""),
+            note=request.POST.get("note", ""),
         )
     except (PermissionDenied, ValidationError) as exc:
+        if request.headers.get("X-Partial"):
+            return render(
+                request,
+                "inspections/_roomcheck_student_row.html",
+                {
+                    "student": student,
+                    "result": check.student_results.filter(student=student).first(),
+                    "check": check,
+                    "statuses": StatusType.objects.active(),
+                    "can_edit": True,
+                    "row_error": _msg(exc),
+                },
+                status=400,
+            )
         messages.error(request, _msg(exc))
+        return redirect(
+            "inspections:roomcheck_floor", date=check.session.date, floor=check.session.floor
+        )
+
+    if request.headers.get("X-Partial"):
+        return render(
+            request,
+            "inspections/_roomcheck_student_row.html",
+            {
+                "student": student,
+                "result": result,
+                "check": check,
+                "statuses": StatusType.objects.active(),
+                "can_edit": True,
+            },
+        )
     return redirect(
         "inspections:roomcheck_floor", date=check.session.date, floor=check.session.floor
     )
@@ -464,8 +371,12 @@ def roomcheck_save_student(request, check_id, student_id):
 def roomcheck_close(request, session_id):
     session = get_object_or_404(RoomCheckSession, pk=session_id)
     try:
-        close_room_check_session(session=session, actor=request.user)
-        messages.success(request, "A szobaellenőrzés lezárva.")
+        close_room_check_session(
+            session=session,
+            actor=request.user,
+            allow_incomplete=bool(request.POST.get("allow_incomplete")),
+        )
+        messages.success(request, "A reggeli ellenőrzés lezárva.")
     except (PermissionDenied, ValidationError) as exc:
         messages.error(request, _msg(exc))
     return redirect("inspections:roomcheck_floor", date=session.date, floor=session.floor)
@@ -480,7 +391,7 @@ def roomcheck_reopen(request, session_id):
         reopen_room_check_session(
             session=session, actor=request.user, reason=request.POST.get("reason", "")
         )
-        messages.success(request, "A szobaellenőrzés újranyitva.")
+        messages.success(request, "A reggeli ellenőrzés újranyitva.")
     except (PermissionDenied, ValidationError) as exc:
         messages.error(request, _msg(exc))
     return redirect("inspections:roomcheck_floor", date=session.date, floor=session.floor)

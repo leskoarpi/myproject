@@ -9,7 +9,7 @@ urlpatterns = [
     path("presence/", include("apps.presence.urls")),
     path("checks/", include("apps.inspections.urls")),
     path("weekend/", include("apps.weekend.urls")),
-    path("leave/", include("apps.leave_permissions.urls")),
+    path("passes/", include("apps.leave_permissions.urls")),
     path("students/", include("apps.students.urls")),
     path("rooms/", include("apps.rooms.urls")),
     path("people/", include("apps.people.urls")),

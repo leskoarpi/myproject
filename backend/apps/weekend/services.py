@@ -339,10 +339,8 @@ def weekend_roster(weekend_start):
                 "group": stay.group_name,
                 "friday_stay": stay.friday_stay,
                 "saturday_stay": stay.saturday_stay,
-                "friday_evening": checks.get((stay.pk, WeekendCheckType.FRIDAY_EVENING)),
-                "saturday_morning": checks.get((stay.pk, WeekendCheckType.SATURDAY_MORNING)),
-                "saturday_evening": checks.get((stay.pk, WeekendCheckType.SATURDAY_EVENING)),
-                "sunday_morning": checks.get((stay.pk, WeekendCheckType.SUNDAY_MORNING)),
+                "friday_night": checks.get((stay.pk, WeekendCheckType.FRIDAY_NIGHT)),
+                "saturday_night": checks.get((stay.pk, WeekendCheckType.SATURDAY_NIGHT)),
                 "note": stay.note,
             }
         )

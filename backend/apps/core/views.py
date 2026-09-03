@@ -168,24 +168,25 @@ def maintenance_reset(request):
     from apps.inspections.models import (
         EveningCheckResult,
         EveningCheckSession,
-        MorningSnapshot,
-        MorningSnapshotItem,
         RoomCheck,
+        RoomCheckHistory,
         RoomCheckSession,
+        RoomCheckStudentResult,
     )
     from apps.presence.models import PresenceEvent
     from apps.weekend.models import WeekendCheck, WeekendCheckSession, WeekendStay
 
     with transaction.atomic():
         # Student and room records are archived, never dropped: history has to
-        # stay valid. Only operational transaction data is cleared.
+        # stay valid. Only operational transaction data is cleared, children
+        # before parents.
         WeekendCheck.objects.all().delete()
         WeekendCheckSession.objects.all().delete()
         WeekendStay.objects.all().delete()
-        MorningSnapshotItem.objects.all().delete()
-        MorningSnapshot.objects.all().delete()
         EveningCheckResult.objects.all().delete()
         EveningCheckSession.objects.all().delete()
+        RoomCheckStudentResult.objects.all().delete()
+        RoomCheckHistory.objects.all().delete()
         RoomCheck.objects.all().delete()
         RoomCheckSession.objects.all().delete()
         PresenceEvent.objects.all().delete()

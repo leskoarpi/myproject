@@ -53,12 +53,7 @@ class Capability:
     EDIT_EVENING_CHECK = "evening_check.edit"
     REOPEN_EVENING_CHECK = "evening_check.reopen"
 
-    # Morning inspection
-    VIEW_MORNING_CHECK = "morning_check.view"
-    EDIT_MORNING_CHECK = "morning_check.edit"
-    REOPEN_MORNING_CHECK = "morning_check.reopen"
-
-    # Room inspection
+    # Room inspection - also the morning presence round (see spec rework)
     VIEW_ROOM_CHECKS = "room_checks.view"
     EDIT_ROOM_CHECKS = "room_checks.edit"
     REOPEN_ROOM_CHECKS = "room_checks.reopen"
@@ -73,10 +68,10 @@ class Capability:
     RUN_WEEKEND_CHECK = "weekend.check"
     REOPEN_WEEKEND_CHECK = "weekend.reopen"
 
-    # Leave permissions
-    VIEW_OWN_LEAVE_PERMISSION = "leave.view_own"
-    VIEW_LEAVE_PERMISSIONS = "leave.view"
-    MANAGE_LEAVE_PERMISSIONS = "leave.manage"
+    # Pass rules (who may be given a pass, and by whom)
+    VIEW_OWN_PASS_RULE = "pass_rules.view_own"
+    VIEW_PASS_RULES = "pass_rules.view"
+    MANAGE_PASS_RULES = "pass_rules.manage"
 
     # People
     VIEW_TEACHERS = "people.view_teachers"
@@ -106,7 +101,7 @@ ALL_CAPABILITIES = frozenset(
 _STUDENT = frozenset(
     {
         Capability.SELF_PRESENCE,
-        Capability.VIEW_OWN_LEAVE_PERMISSION,
+        Capability.VIEW_OWN_PASS_RULE,
         Capability.VIEW_OWN_ROOM_CHECKS,
         Capability.REQUEST_WEEKEND_STAY,
     }
@@ -116,6 +111,7 @@ _PORTER = frozenset(
     {
         Capability.VIEW_PRESENCE,
         Capability.VIEW_STUDENTS,
+        Capability.VIEW_PASS_RULES,
     }
 )
 
@@ -131,16 +127,14 @@ _TEACHER = frozenset(
         Capability.VIEW_ROOMS,
         Capability.VIEW_EVENING_CHECK,
         Capability.EDIT_EVENING_CHECK,
-        Capability.VIEW_MORNING_CHECK,
-        Capability.EDIT_MORNING_CHECK,
         Capability.VIEW_ROOM_CHECKS,
         Capability.EDIT_ROOM_CHECKS,
         Capability.VIEW_ROOM_CHECK_HISTORY,
         Capability.VIEW_WEEKEND_STAY,
         Capability.REVIEW_WEEKEND_STAY,
         Capability.RUN_WEEKEND_CHECK,
-        Capability.VIEW_LEAVE_PERMISSIONS,
-        Capability.MANAGE_LEAVE_PERMISSIONS,
+        Capability.VIEW_PASS_RULES,
+        Capability.MANAGE_PASS_RULES,
         Capability.VIEW_TEACHERS,
     }
 )
@@ -156,7 +150,6 @@ _MANAGEMENT = frozenset(
         Capability.MANAGE_CALENDAR,
         Capability.MANAGE_STATUS_TYPES,
         Capability.REOPEN_EVENING_CHECK,
-        Capability.REOPEN_MORNING_CHECK,
         Capability.REOPEN_ROOM_CHECKS,
         Capability.MANAGE_WEEKEND_STAY,
         Capability.REOPEN_WEEKEND_CHECK,

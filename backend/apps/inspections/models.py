@@ -135,137 +135,8 @@ class EveningCheckResult(TimeStampedModel):
 
 
 # --------------------------------------------------------------------------
-# Morning inspection (spec sections 19-24)
-# --------------------------------------------------------------------------
-
-
-class MorningResult(models.TextChoices):
-    PRESENT = "present", "Bent aludt"
-    ABSENT = "absent", "Nem volt bent"
-    LEFT_OVERNIGHT = "left_overnight", "Éjszaka elment"
-    RETURNED_LATE = "returned_late", "Éjszaka érkezett"
-    UNKNOWN = "unknown", "Nem ellenőrzött"
-
-
-class MonthState(models.TextChoices):
-    OPEN = "open", "Nyitva"
-    CLOSED = "closed", "Lezárva"
-
-
-class MorningMonth(TimeStampedModel):
-    """Monthly grouping of morning snapshots (spec section 24)."""
-
-    year = models.PositiveSmallIntegerField()
-    month = models.PositiveSmallIntegerField()
-    state = models.CharField(max_length=16, choices=MonthState.choices, default=MonthState.OPEN)
-    closed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
-    )
-    closed_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["-year", "-month"]
-        constraints = [
-            models.UniqueConstraint(fields=["year", "month"], name="morningmonth_unique_period"),
-            models.CheckConstraint(
-                condition=models.Q(month__gte=1) & models.Q(month__lte=12),
-                name="morningmonth_valid_month",
-            ),
-        ]
-
-    def __str__(self):
-        return f"{self.year}-{self.month:02d}"
-
-    @classmethod
-    def for_date(cls, day):
-        obj, _ = cls.objects.get_or_create(year=day.year, month=day.month)
-        return obj
-
-
-class MorningSnapshot(InspectionSession):
-    """An immutable historical baseline for one morning.
-
-    Item rows carry copies of the student's name, room, floor and class so the
-    record stays truthful even after the student moves or is renamed
-    (spec sections 19-20, 71).
-    """
-
-    calendar_day = models.OneToOneField(
-        "dormcalendar.CalendarDay", on_delete=models.CASCADE, related_name="morning_snapshot"
-    )
-    month = models.ForeignKey(
-        MorningMonth, on_delete=models.PROTECT, related_name="snapshots"
-    )
-    # The moment the student's state was evaluated against (default 04:00).
-    cutoff_at = models.DateTimeField()
-    generated_at = models.DateTimeField(default=timezone.now)
-    generated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
-    )
-
-    class Meta:
-        ordering = ["-calendar_day__date"]
-
-    def __str__(self):
-        return f"Reggeli pillanatkép {self.calendar_day.date:%Y-%m-%d}"
-
-    @property
-    def date(self):
-        return self.calendar_day.date
-
-
-class MorningSnapshotItem(TimeStampedModel):
-    snapshot = models.ForeignKey(
-        MorningSnapshot, on_delete=models.CASCADE, related_name="items"
-    )
-    student = models.ForeignKey(
-        "students.StudentProfile", on_delete=models.PROTECT, related_name="morning_items"
-    )
-
-    # --- frozen historical values -------------------------------------
-    student_name = models.CharField(max_length=200)
-    room_number = models.CharField(max_length=16, blank=True)
-    floor = models.PositiveSmallIntegerField(null=True, blank=True)
-    school_class = models.CharField(max_length=32, blank=True)
-    group_name = models.CharField(max_length=128, blank=True)
-    evening_status_code = models.CharField(max_length=32, blank=True)
-    evening_status_label = models.CharField(max_length=64, blank=True)
-    cutoff_status_code = models.CharField(max_length=32, blank=True)
-    cutoff_status_label = models.CharField(max_length=64, blank=True)
-
-    # --- results ------------------------------------------------------
-    calculated_result = models.CharField(
-        max_length=16, choices=MorningResult.choices, default=MorningResult.UNKNOWN
-    )
-    final_result = models.CharField(
-        max_length=16, choices=MorningResult.choices, default=MorningResult.UNKNOWN
-    )
-    is_reviewed = models.BooleanField(default=False)
-    reviewed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
-    )
-    reviewed_at = models.DateTimeField(null=True, blank=True)
-    note = models.CharField(max_length=255, blank=True)
-
-    class Meta:
-        ordering = ["floor", "room_number", "student_name"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["snapshot", "student"], name="morningitem_unique_snapshot_student"
-            )
-        ]
-        indexes = [models.Index(fields=["snapshot", "final_result"])]
-
-    def __str__(self):
-        return f"{self.student_name} - {self.get_final_result_display()}"
-
-    @property
-    def was_corrected(self):
-        return self.final_result != self.calculated_result
-
-
-# --------------------------------------------------------------------------
-# Room / cleanliness inspection (spec sections 25-28)
+# Morning round: room condition + each resident's morning status
+# (spec sections 25-28, merged with the former morning check)
 # --------------------------------------------------------------------------
 
 
@@ -344,14 +215,18 @@ class RoomCheckHistory(models.Model):
         return f"{self.room_check_id} @ {self.saved_at:%Y-%m-%d %H:%M}"
 
 
-class RoomCheckPresence(models.TextChoices):
-    PRESENT = "present", "Jelen"
-    ABSENT = "absent", "Nincs jelen"
-    UNKNOWN = "unknown", "Nem ellenőrzött"
-
-
 class RoomCheckStudentResult(TimeStampedModel):
-    """Per-student detail captured during a room inspection (spec section 27)."""
+    """One resident's morning status, recorded during the room round.
+
+    This replaces the separate morning inspection: the teacher walks the floor
+    once, rates the room and sets each student's status in the same pass.
+    Saving a result also moves the student's live presence, sourced as
+    ``room_check`` so the history stays attributable.
+
+    The name/room/class columns are frozen copies taken at entry time, so a
+    later room move or rename cannot rewrite this morning's sheet
+    (spec section 71).
+    """
 
     room_check = models.ForeignKey(
         RoomCheck, on_delete=models.CASCADE, related_name="student_results"
@@ -359,24 +234,38 @@ class RoomCheckStudentResult(TimeStampedModel):
     student = models.ForeignKey(
         "students.StudentProfile", on_delete=models.PROTECT, related_name="room_check_results"
     )
-    presence_result = models.CharField(
-        max_length=16, choices=RoomCheckPresence.choices, default=RoomCheckPresence.UNKNOWN
+    status = models.ForeignKey(
+        "presence.StatusType",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
     )
-    detail_code = models.CharField(max_length=32, blank=True)
-    departure_time = models.TimeField(null=True, blank=True)
-    detail_note = models.CharField(max_length=255, blank=True)
+
+    # --- frozen historical values -------------------------------------
+    student_name = models.CharField(max_length=200, blank=True)
+    room_number = models.CharField(max_length=16, blank=True)
+    school_class = models.CharField(max_length=32, blank=True)
+
+    note = models.CharField(max_length=255, blank=True)
     saved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     saved_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        ordering = ["student__full_name"]
+        ordering = ["room_number", "student_name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["room_check", "student"], name="roomcheckstudent_unique_check_student"
             )
         ]
+        indexes = [models.Index(fields=["student", "-saved_at"])]
 
     def __str__(self):
-        return f"{self.student} - {self.get_presence_result_display()}"
+        label = self.status.label if self.status_id else "—"
+        return f"{self.student_name or self.student}: {label}"
+
+    @property
+    def is_recorded(self):
+        return self.status_id is not None

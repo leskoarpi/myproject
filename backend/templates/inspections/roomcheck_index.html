@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Szobaellenőrzés{% endblock %}
+{% block title %}Reggeli ellenőrzés{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Szobaellenőrzés</h1><p class="subtitle">{{ date|date:"Y. m. d." }}</p></div>
+  <div><h1>Reggeli ellenőrzés</h1>
+    <p class="subtitle">{{ date|date:"Y. m. d." }} · szobarend és a lakók státusza egy menetben</p></div>
   <form method="get" class="actions">
     <input type="date" name="date" value="{{ date|date:'Y-m-d' }}">
     <button class="btn" type="submit">Váltás</button>
@@ -17,6 +18,11 @@
         {% if row.session.is_closed %}<span class="badge ok">Lezárva</span>{% else %}<span class="badge warn">Nyitva</span>{% endif %}
       {% else %}<span class="badge">Nem indult</span>{% endif %}
     </h2>
+    {% if row.progress %}
+      <div class="progress {% if row.progress.complete %}done{% endif %}"><span style="width: {{ row.progress.percent }}%"></span></div>
+      <p class="small muted">Szoba {{ row.progress.rooms_done }}/{{ row.progress.rooms_total }} ·
+        Diák {{ row.progress.students_done }}/{{ row.progress.students_total }}</p>
+    {% endif %}
     <a class="btn primary" href="{% url 'inspections:roomcheck_floor' date=date|date:'Y-m-d' floor=row.floor %}">
       {% if can_edit %}Ellenőrzés{% else %}Megtekintés{% endif %}
     </a>

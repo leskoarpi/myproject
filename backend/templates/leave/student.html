@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ student.full_name }} — kimenő jogosultság{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ student.full_name }}</h1>
+    <p class="subtitle">{{ student.current_room|default:"nincs szoba" }} · {{ student.group|default:"nincs csoport" }}</p></div>
+  <a class="btn" href="{% url 'passes:index' %}">Vissza</a>
+</div>
+
+<div class="status-hero">
+  <div>
+    <div class="big"><span class="badge {{ rule.badge_class }}">{{ rule.get_eligibility_display }}</span></div>
+    <div class="small muted">
+      {% if rule.note %}{{ rule.note }} · {% endif %}
+      {% if rule.set_by %}Beállította: {{ rule.set_by.display_name }}, {{ rule.set_at|date:"Y. m. d. H:i" }}{% else %}Még nem állították be{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if can_edit %}
+<div class="card">
+  <h2>Beállítás</h2>
+  <form method="post" action="{% url 'passes:set_rule' student_id=student.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.path }}">
+    {% for value, label in choices %}
+      <div class="checkline">
+        <input type="radio" id="el-{{ value }}" name="eligibility" value="{{ value }}" {% if rule.eligibility == value %}checked{% endif %} required>
+        <label for="el-{{ value }}">{{ label }}</label>
+      </div>
+    {% endfor %}
+    <div class="field" style="margin-top:10px">
+      <label for="note">Megjegyzés</label>
+      <input type="text" id="note" name="note" maxlength="255" value="{{ rule.note }}"
+             placeholder="Az „Egyéb” beállításhoz kötelező">
+    </div>
+    <button class="btn primary" type="submit">Mentés</button>
+  </form>
+</div>
+{% else %}
+<div class="notice">Ezt a beállítást a diák saját nevelőtanára vagy a vezetőség módosíthatja. Megtekinteni bárki tudja.</div>
+{% endif %}
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Időpont</th><th>Előző</th><th>Új</th><th>Megjegyzés</th><th>Ki</th></tr></thead>
+      <tbody>
+      {% for e in history %}
+        <tr>
+          <td class="small mono nowrap">{{ e.created_at|date:"Y. m. d. H:i" }}</td>
+          <td class="small muted">{{ e.previous_label }}</td>
+          <td class="small">{{ e.new_label }}</td>
+          <td class="small">{{ e.new_note|default:"—" }}</td>
+          <td class="small muted">{{ e.created_by.display_name|default:"rendszer" }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="5" class="empty">Nincs előzmény.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

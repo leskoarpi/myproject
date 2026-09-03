@@ -42,9 +42,12 @@ def can_change_presence_of(actor, student):
     if not actor.has_capability(Capability.EDIT_PRESENCE):
         return False
 
-    from apps.students.selectors import student_queryset_for_user
+    # Presence is dormitory-wide for staff: whoever is on duty covers the whole
+    # building, so scoping the roster to a teacher's own group would stop them
+    # doing the job. Access to the student *record* stays group-scoped.
+    from apps.students.selectors import presence_queryset_for_user
 
-    return student_queryset_for_user(actor).filter(pk=student.pk).exists()
+    return presence_queryset_for_user(actor).filter(pk=student.pk).exists()
 
 
 def ensure_presence_row(student):
@@ -142,7 +145,19 @@ def old_status_id_matches(old_status, new_status):
 
 
 def student_return(*, student, actor, reason=""):
-    """The "Bejöttem" action (spec section 12)."""
+    """The "Bejöttem" action (spec section 12).
+
+    Self-service is a switch, not two independent buttons: a student who is
+    already inside cannot press it again. The UI only offers the action that
+    applies, and this guard makes a stale page or a double tap harmless.
+    """
+    if not can_change_presence_of(actor, student):
+        raise PermissionDenied("You may not change this student's presence.")
+
+    presence = ensure_presence_row(student)
+    if presence.status.counts_as_inside:
+        raise ValidationError("Már bent vagy, ezt nem kell újra rögzíteni.")
+
     inside = StatusType.objects.filter(counts_as_inside=True, is_active=True).order_by(
         "sort_order"
     ).first()
@@ -154,7 +169,19 @@ def student_return(*, student, actor, reason=""):
 
 
 def student_leave(*, student, actor, status_code, reason=""):
-    """The "Kimentem" action with a chosen reason (spec section 12)."""
+    """The "Kimentem" action with a chosen reason (spec section 12).
+
+    The other half of the switch: only available while the student is inside.
+    """
+    if not can_change_presence_of(actor, student):
+        raise PermissionDenied("You may not change this student's presence.")
+
+    presence = ensure_presence_row(student)
+    if not presence.status.counts_as_inside:
+        raise ValidationError(
+            "Már kint vagy. Előbb jelöld a visszaérkezésed, utána mehetsz újra."
+        )
+
     status = StatusType.objects.filter(
         code=status_code, is_active=True, student_selectable=True
     ).first()

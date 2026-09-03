@@ -1,11 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Szobaellenőrzés — {{ floor }}. emelet{% endblock %}
+{% block title %}Reggeli ellenőrzés — {{ floor }}. emelet{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><h1>{{ floor }}. emelet</h1>
     <p class="subtitle">{{ date|date:"Y. m. d." }} ·
       {% if session.is_closed %}<span class="badge ok">Lezárva</span>{% else %}<span class="badge warn">Nyitva</span>{% endif %}</p></div>
   <a class="btn" href="{% url 'inspections:roomcheck_index' %}">Vissza</a>
+</div>
+
+<div class="card">
+  <div class="progress {% if progress.complete %}done{% endif %}"><span style="width: {{ progress.percent }}%"></span></div>
+  <p class="small muted">
+    Szoba: {{ progress.rooms_done }}/{{ progress.rooms_total }} ·
+    Diák: {{ progress.students_done }}/{{ progress.students_total }}
+  </p>
 </div>
 
 {% for row in rows %}
@@ -21,7 +29,7 @@
   <form method="post" action="{% url 'inspections:roomcheck_save' check_id=check.pk %}">
     {% csrf_token %}
     <div class="field">
-      <label for="rating-{{ check.pk }}">Értékelés (1–5)</label>
+      <label for="rating-{{ check.pk }}">Szobarend értékelés (1–5)</label>
       <select id="rating-{{ check.pk }}" name="rating">
         <option value="">—</option>
         {% for r in rating_range %}<option value="{{ r }}" {% if check.rating == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
@@ -31,7 +39,7 @@
       <textarea id="problems-{{ check.pk }}" name="problems" rows="2">{{ check.problems }}</textarea></div>
     <div class="field"><label for="notes-{{ check.pk }}">Megjegyzés</label>
       <textarea id="notes-{{ check.pk }}" name="notes" rows="2">{{ check.notes }}</textarea></div>
-    <button class="btn primary" type="submit">Szoba mentése</button>
+    <button class="btn primary" type="submit">Szobarend mentése</button>
   </form>
   {% else %}
     {% if check.problems %}<p class="small"><strong>Hibák:</strong> {{ check.problems }}</p>{% endif %}
@@ -39,46 +47,15 @@
     {% if check.checked_at %}<p class="small muted">{{ check.checked_at|date:"Y. m. d. H:i" }} · {{ check.checked_by.display_name|default:"" }}</p>{% endif %}
   {% endif %}
 
-  <h2 style="margin-top:18px;font-size:15px">Lakók</h2>
-  {% if can_edit %}
-    {% for student, result in row.students %}
-      <form method="post" id="src-{{ check.pk }}-{{ student.pk }}"
-            action="{% url 'inspections:roomcheck_save_student' check_id=check.pk student_id=student.pk %}">
-        {% csrf_token %}
-      </form>
-    {% endfor %}
-  {% endif %}
+  <h2 style="margin-top:18px;font-size:15px">Lakók reggeli státusza</h2>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Név</th><th>Jelenlét</th><th>Távozás</th><th>Megjegyzés</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+      <thead><tr><th>Név</th><th>Státusz</th><th>Megjegyzés</th></tr></thead>
       <tbody>
       {% for student, result in row.students %}
-        <tr>
-          {% if can_edit %}
-          <td>{{ student.full_name }}</td>
-          <td>
-            <select name="presence_result" form="src-{{ check.pk }}-{{ student.pk }}" aria-label="{{ student.full_name }} jelenléte">
-              {% for value, label in presence_choices %}
-                <option value="{{ value }}" {% if result and result.presence_result == value %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </td>
-          <td><input type="time" name="departure_time" form="src-{{ check.pk }}-{{ student.pk }}"
-                     value="{% if result and result.departure_time %}{{ result.departure_time|time:'H:i' }}{% endif %}"></td>
-          <td><input type="text" name="detail_note" maxlength="255" form="src-{{ check.pk }}-{{ student.pk }}"
-                     value="{% if result %}{{ result.detail_note }}{% endif %}"></td>
-          <td>
-            <button class="btn small" type="submit" form="src-{{ check.pk }}-{{ student.pk }}">Mentés</button>
-          </td>
-          {% else %}
-          <td>{{ student.full_name }}</td>
-          <td>{% if result %}<span class="badge">{{ result.get_presence_result_display }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
-          <td class="small mono">{% if result and result.departure_time %}{{ result.departure_time|time:"H:i" }}{% else %}—{% endif %}</td>
-          <td class="small muted">{% if result %}{{ result.detail_note }}{% endif %}</td>
-          {% endif %}
-        </tr>
+        {% include "inspections/_roomcheck_student_row.html" %}
       {% empty %}
-        <tr><td colspan="5" class="empty">Ebben a szobában nincs beosztott diák.</td></tr>
+        <tr><td colspan="3" class="empty">Ebben a szobában nincs beosztott diák.</td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -106,6 +83,13 @@
     <form method="post" action="{% url 'inspections:roomcheck_close' session_id=session.pk %}" data-confirm="Lezárod az emeletet?">
       {% csrf_token %}<button class="btn primary" type="submit">Lezárás</button>
     </form>
+    {% if progress.students_missing %}
+      <form method="post" action="{% url 'inspections:roomcheck_close' session_id=session.pk %}"
+            data-confirm="{{ progress.students_missing }} diáknak nincs státusza. Mégis lezárod?">
+        {% csrf_token %}<input type="hidden" name="allow_incomplete" value="1">
+        <button class="btn" type="submit">Lezárás hiányosan</button>
+      </form>
+    {% endif %}
   {% endif %}
   {% if session.is_closed and can_reopen %}
     <form method="post" action="{% url 'inspections:roomcheck_reopen' session_id=session.pk %}">

@@ -8,7 +8,7 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.capabilities import Capability
 from apps.accounts.permissions import require_capabilities
-from apps.students.selectors import student_queryset_for_user
+from apps.students.selectors import presence_queryset_for_user
 
 from .models import PresenceEvent, StatusType, StudentPresence
 from .services import (
@@ -25,7 +25,7 @@ from .services import (
 def current_presence(request):
     """Live roster. The table polls itself every 30s (spec section 50);
     no websocket infrastructure is introduced for this."""
-    students = student_queryset_for_user(request.user)
+    students = presence_queryset_for_user(request.user)
     search = request.GET.get("q", "").strip()
     status_code = request.GET.get("status", "").strip()
     floor = request.GET.get("floor", "").strip()
@@ -48,6 +48,10 @@ def current_presence(request):
             student__room_assignments__room__floor=int(floor),
         )
 
+    # The pass rule rides along in the roster: this is where staff actually
+    # look when a student asks for a pass.
+    presences = presences.select_related("student__pass_rule")
+
     context = {
         "presences": presences.order_by("student__full_name"),
         "summary": presence_summary(students),
@@ -56,6 +60,7 @@ def current_presence(request):
         "selected_status": status_code,
         "selected_floor": floor,
         "can_edit": request.user.has_capability(Capability.EDIT_PRESENCE),
+        "show_pass_rules": request.user.has_capability(Capability.VIEW_PASS_RULES),
     }
     if request.headers.get("X-Partial"):
         return render(request, "presence/_current_table.html", context)
@@ -65,7 +70,7 @@ def current_presence(request):
 @login_required
 @require_capabilities(Capability.VIEW_PRESENCE_HISTORY)
 def presence_log(request):
-    students = student_queryset_for_user(request.user)
+    students = presence_queryset_for_user(request.user)
     events = (
         PresenceEvent.objects.filter(student__in=students)
         .select_related("student", "old_status", "new_status", "created_by")
@@ -89,7 +94,7 @@ def presence_log(request):
 @login_required
 @require_capabilities(Capability.VIEW_PRESENCE)
 def student_presence_detail(request, student_id):
-    student = get_object_or_404(student_queryset_for_user(request.user), pk=student_id)
+    student = get_object_or_404(presence_queryset_for_user(request.user), pk=student_id)
     presence = ensure_presence_row(student)
     events = (
         PresenceEvent.objects.filter(student=student)
@@ -112,7 +117,7 @@ def student_presence_detail(request, student_id):
 @require_POST
 def set_student_presence(request, student_id):
     """Staff changes another student's status."""
-    student = get_object_or_404(student_queryset_for_user(request.user), pk=student_id)
+    student = get_object_or_404(presence_queryset_for_user(request.user), pk=student_id)
     status_code = request.POST.get("status", "")
     reason = request.POST.get("reason", "")[:255]
 
@@ -130,7 +135,12 @@ def set_student_presence(request, student_id):
         return render(
             request,
             "presence/_row.html",
-            {"presence": presence, "statuses": StatusType.objects.active(), "can_edit": True},
+            {
+                "presence": presence,
+                "statuses": StatusType.objects.active(),
+                "can_edit": True,
+                "show_pass_rules": request.user.has_capability(Capability.VIEW_PASS_RULES),
+            },
         )
     return redirect(request.POST.get("next") or "presence:current")
 

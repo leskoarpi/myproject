@@ -9,16 +9,10 @@ app = Celery("deakkoli")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
+# The morning snapshot and the leave-permission expiry jobs are gone: the
+# morning round is now recorded by hand during the room check, and passes are a
+# per-student rule rather than something that expires.
 app.conf.beat_schedule = {
-    # Runs after the morning cutoff so the snapshot sees the settled state.
-    "generate-morning-snapshot": {
-        "task": "apps.inspections.tasks.generate_morning_snapshot_task",
-        "schedule": crontab(hour=5, minute=0),
-    },
-    "expire-leave-permissions": {
-        "task": "apps.leave_permissions.tasks.expire_leave_permissions_task",
-        "schedule": crontab(hour=0, minute=10),
-    },
     "ensure-calendar-days": {
         "task": "apps.dormcalendar.tasks.ensure_calendar_days_task",
         "schedule": crontab(hour=0, minute=5),

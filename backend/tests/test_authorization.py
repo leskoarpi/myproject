@@ -112,6 +112,19 @@ def test_porter_can_view_but_not_edit(world):
     assert not porter.has_capability(Capability.EDIT_EVENING_CHECK)
 
 
+def test_presence_is_wider_than_record_access_for_a_teacher(world):
+    """The two scopes are deliberately different: a duty teacher sees every
+    student's presence, but only their own group's records."""
+    from apps.students.selectors import presence_queryset_for_user
+
+    teacher_user = world["teacher_a"].user
+    records = set(student_queryset_for_user(teacher_user))
+    presence = set(presence_queryset_for_user(teacher_user))
+
+    assert world["student_b"] not in records
+    assert world["student_b"] in presence
+
+
 def test_student_cannot_approve_their_own_weekend_request(world):
     student = world["student_a"]
     stay = submit_weekend_stay(

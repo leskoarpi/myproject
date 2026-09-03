@@ -145,26 +145,26 @@ class WeekendStay(TimeStampedModel):
 
 
 class WeekendCheckType(models.TextChoices):
-    FRIDAY_EVENING = "friday_evening", "Péntek este"
-    SATURDAY_MORNING = "saturday_morning", "Szombat reggel"
-    SATURDAY_EVENING = "saturday_evening", "Szombat este"
-    SUNDAY_MORNING = "sunday_morning", "Vasárnap reggel"
+    """Weekends are checked at night only.
+
+    The morning rounds the old system ran (Saturday and Sunday morning) were
+    dropped: what matters over a weekend is who actually slept in the building.
+    """
+
+    FRIDAY_NIGHT = "friday_evening", "Péntek éjszaka"
+    SATURDAY_NIGHT = "saturday_evening", "Szombat éjszaka"
 
 
 # Which day of the weekend each check happens on, as an offset from Friday.
 CHECK_DAY_OFFSET = {
-    WeekendCheckType.FRIDAY_EVENING: 0,
-    WeekendCheckType.SATURDAY_MORNING: 1,
-    WeekendCheckType.SATURDAY_EVENING: 1,
-    WeekendCheckType.SUNDAY_MORNING: 2,
+    WeekendCheckType.FRIDAY_NIGHT: 0,
+    WeekendCheckType.SATURDAY_NIGHT: 1,
 }
 
 # Which stay night a check is relevant to.
 CHECK_REQUIRES_NIGHT = {
-    WeekendCheckType.FRIDAY_EVENING: "friday_stay",
-    WeekendCheckType.SATURDAY_MORNING: "friday_stay",
-    WeekendCheckType.SATURDAY_EVENING: "saturday_stay",
-    WeekendCheckType.SUNDAY_MORNING: "saturday_stay",
+    WeekendCheckType.FRIDAY_NIGHT: "friday_stay",
+    WeekendCheckType.SATURDAY_NIGHT: "saturday_stay",
 }
 
 

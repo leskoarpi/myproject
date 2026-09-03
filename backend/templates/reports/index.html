@@ -2,27 +2,93 @@
 {% block title %}Riportok{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Riportok</h1><p class="subtitle">A riportok a lekérdezési rétegből épülnek, jogosultságra szűrve</p></div>
-  {% if can_export %}<a class="btn primary" href="{% url 'reports:export_bundle' %}">Csomag letöltése (ZIP)</a>{% endif %}
+  <div><h1>Riportok</h1><p class="subtitle">Havi munkalapok nyomtatásra és Excelbe</p></div>
+  {% if can_export %}<a class="btn" href="{% url 'reports:export_bundle' %}">Csomag letöltése (ZIP)</a>{% endif %}
 </div>
 
-<form class="filters" method="get" id="period">
-  <div><label for="start">Kezdet</label><input type="date" id="start" name="start" value="{{ start|date:'Y-m-d' }}"></div>
-  <div><label for="end">Vége</label><input type="date" id="end" name="end" value="{{ end|date:'Y-m-d' }}"></div>
-</form>
+<div class="card">
+  <h2>Havi munkalapok
+    <span class="actions">
+      <a class="btn small" href="?year={{ prev_year }}&month={{ prev_month }}">← {{ prev_year }}.{{ prev_month }}</a>
+      <a class="btn small" href="?year={{ next_year }}&month={{ next_month }}">{{ next_year }}.{{ next_month }} →</a>
+    </span>
+  </h2>
+  <p class="small muted">{{ year }}. {{ month }}. hónap — soronként egy szoba vagy diák, oszloponként a hónap napjai.</p>
 
-<div class="grid cols-3">
-{% for name, title in reports.items %}
+  <div class="grid cols-2" style="margin-top:12px">
+    {% for key, label in monthly.items %}
+      <div class="card" style="margin:0">
+        <h2 style="font-size:15px">{{ label }}</h2>
+        <div class="actions">
+          <a class="btn primary" href="{% url 'reports:monthly' name=key %}?year={{ year }}&month={{ month }}">Megnyitás / nyomtatás</a>
+          {% if can_export %}
+            <a class="btn" href="{% url 'reports:monthly_xlsx' name=key %}?year={{ year }}&month={{ month }}">Excel (.xlsx)</a>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="grid cols-2">
   <div class="card">
-    <h2 style="font-size:15px">{{ title }}</h2>
-    <div class="actions">
-      <a class="btn small" href="{% url 'reports:detail' name=name %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">Megnyitás</a>
-      {% if can_export %}
-        <a class="btn small" href="{% url 'reports:export' name=name fmt='csv' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">CSV</a>
-        <a class="btn small" href="{% url 'reports:export' name=name fmt='json' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">JSON</a>
-      {% endif %}
+    <h2>Szobarend — emeleti átlag</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Emelet</th><th class="num">Átlag</th><th class="num">Ellenőrzés</th></tr></thead>
+        <tbody>
+        {% for row in tidiness_summary %}
+          <tr><td>{{ row.room__floor }}. emelet</td>
+              <td class="num">{{ row.average|floatformat:2 }}</td>
+              <td class="num">{{ row.checks }}</td></tr>
+        {% empty %}<tr><td colspan="3" class="empty">Ebben a hónapban nincs értékelés.</td></tr>{% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
-{% endfor %}
+
+  <div class="card">
+    <h2>Esti jelenlét — emeletenként</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Emelet</th><th class="num">Bent</th><th class="num">Összes</th></tr></thead>
+        <tbody>
+        {% for row in presence_summary %}
+          <tr><td>{{ row.session__floor }}. emelet</td>
+              <td class="num">{{ row.inside }}</td><td class="num">{{ row.total }}</td></tr>
+        {% empty %}<tr><td colspan="3" class="empty">Ebben a hónapban nincs esti ellenőrzés.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Eseti lekérdezések</h2>
+  <form class="filters" method="get">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="month" value="{{ month }}">
+    <div><label for="start">Kezdet</label><input type="date" id="start" name="start" value="{{ start|date:'Y-m-d' }}"></div>
+    <div><label for="end">Vége</label><input type="date" id="end" name="end" value="{{ end|date:'Y-m-d' }}"></div>
+    <div><button class="btn" type="submit">Időszak</button></div>
+  </form>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Riport</th><th></th></tr></thead>
+      <tbody>
+      {% for name, title in reports.items %}
+        <tr>
+          <td>{{ title }}</td>
+          <td class="actions">
+            <a class="btn small" href="{% url 'reports:detail' name=name %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">Megnyitás</a>
+            {% if can_export %}
+              <a class="btn small" href="{% url 'reports:export' name=name fmt='csv' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">CSV</a>
+              <a class="btn small" href="{% url 'reports:export' name=name fmt='json' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">JSON</a>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}

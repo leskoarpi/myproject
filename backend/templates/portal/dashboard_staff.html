@@ -41,28 +41,26 @@
   </div>
   {% endif %}
 
-  {% if morning is not None %}
-  <div class="card">
-    <h2>Reggeli ellenőrzés <a class="btn small" href="{% url 'inspections:morning_index' %}">Megnyitás</a></h2>
-    {% if morning %}
-      <p><span class="badge {% if morning.is_closed %}ok{% else %}warn{% endif %}">{{ morning.get_state_display }}</span>
-         {{ morning.items.count }} tétel</p>
-      <a class="btn" href="{% url 'inspections:morning_detail' snapshot_id=morning.pk %}">Áttekintés</a>
-    {% else %}
-      <p class="muted">Mára még nem készült pillanatkép.</p>
-    {% endif %}
-  </div>
-  {% endif %}
-
   {% if open_room_sessions is not None %}
   <div class="card">
-    <h2>Szobaellenőrzés <a class="btn small" href="{% url 'inspections:roomcheck_index' %}">Megnyitás</a></h2>
-    <p>{{ open_room_sessions }} nyitott munkamenet</p>
-    <ul class="small">
-      {% for s in room_sessions|slice:":5" %}
-        <li><a href="{% url 'inspections:roomcheck_floor' date=s.date|date:'Y-m-d' floor=s.floor %}">{{ s.date|date:"m. d." }} · {{ s.floor }}. emelet</a> — {{ s.get_state_display }}</li>
-      {% empty %}<li class="muted">Nincs friss ellenőrzés.</li>{% endfor %}
-    </ul>
+    <h2>Reggeli ellenőrzés <a class="btn small" href="{% url 'inspections:roomcheck_index' %}">Megnyitás</a></h2>
+    <p class="small muted">Szobarend és a lakók reggeli státusza egy menetben.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Emelet</th><th>Állapot</th><th class="num">Haladás</th></tr></thead>
+        <tbody>
+        {% for s in today_room_sessions %}
+          <tr>
+            <td><a href="{% url 'inspections:roomcheck_floor' date=s.date|date:'Y-m-d' floor=s.floor %}">{{ s.floor }}. emelet</a></td>
+            <td>{% if s.is_closed %}<span class="badge ok">Lezárva</span>{% else %}<span class="badge warn">Folyamatban</span>{% endif %}</td>
+            <td class="num small muted">{{ s.closed_by.display_name|default:"" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="empty">Mára még nem indult reggeli ellenőrzés.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
   {% endif %}
 

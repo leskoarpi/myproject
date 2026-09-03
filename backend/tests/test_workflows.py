@@ -47,13 +47,19 @@ def test_student_self_service_presence_round_trip(client, world):
     student = world["student"]
     client.force_login(student.user)
 
-    dashboard = client.get(reverse("portal:dashboard"))
-    assert dashboard.status_code == 200
-    assert "KIMENTEM" in dashboard.content.decode()
+    # Inside: only the "going out" side of the switch is on the page.
+    inside_page = client.get(reverse("portal:dashboard")).content.decode()
+    assert "KIMENTEM" in inside_page
+    assert "BEJÖTTEM" not in inside_page
 
     client.post(reverse("presence:self_leave"), {"status": "home", "reason": "hétvége"})
     student.refresh_from_db()
     assert student.presence.status.code == "home"
+
+    # Outside: the page flips to the other side.
+    outside_page = client.get(reverse("portal:dashboard")).content.decode()
+    assert "BEJÖTTEM" in outside_page
+    assert "KIMENTEM" not in outside_page
 
     client.post(reverse("presence:self_return"))
     student.refresh_from_db()
@@ -223,19 +229,26 @@ def test_only_one_school_year_can_be_active(world):
             )
 
 
-def test_reports_are_scoped_to_the_user(client, world):
+def test_presence_reports_cover_the_whole_dormitory(client, world):
+    """Presence reporting follows the roster, which is building-wide."""
+    from apps.presence.services import ensure_presence_row
     from apps.reports.queries import current_presence_report
 
     outsider = f.make_student(group=f.make_group(), name="Kívülálló")
-    from apps.presence.services import ensure_presence_row
-
     ensure_presence_row(world["student"])
     ensure_presence_row(outsider)
 
-    teacher_rows = current_presence_report(world["teacher"].user)
-    names = {row["name"] for row in teacher_rows}
-    assert "Teszt Diák" in names
-    assert "Kívülálló" not in names
+    names = {row["name"] for row in current_presence_report(world["teacher"].user)}
+    assert {"Teszt Diák", "Kívülálló"} <= names
+
+
+def test_student_records_stay_group_scoped(world):
+    """The privacy boundary that did not move: guardian and medical data."""
+    from apps.students.selectors import student_queryset_for_user
+
+    outsider = f.make_student(group=f.make_group(), name="Kívülálló")
+    visible = set(student_queryset_for_user(world["teacher"].user))
+    assert outsider not in visible
 
 
 def test_maintenance_reset_is_refused_by_default(client, world, settings):
@@ -247,4 +260,42 @@ def test_maintenance_reset_is_refused_by_default(client, world, settings):
     )
     assert response.status_code == 200
     assert AuditLog.objects.filter(action=AuditAction.MAINTENANCE).exists()
+    assert world["student"].room_assignments.exists()
+
+
+def test_maintenance_reset_clears_operational_data_but_keeps_students(
+    client, world, settings
+):
+    """Exercises the *confirmed* path, which the refusal test never reaches.
+
+    A regression guard: this path imports its models lazily, so a model removed
+    elsewhere would only blow up here, at the worst possible moment.
+    """
+    from apps.inspections.models import RoomCheckSession
+    from apps.inspections.services import open_room_check_session, save_room_check
+    from apps.presence.models import PresenceEvent
+    from apps.presence.services import change_student_presence
+    from apps.students.models import StudentProfile
+
+    settings.ALLOW_DESTRUCTIVE_MAINTENANCE = True
+
+    session = open_room_check_session(
+        date=dt.date(2026, 9, 3), floor=1, actor=world["admin"]
+    )
+    save_room_check(room_check=session.checks.first(), actor=world["admin"], rating=3)
+    change_student_presence(
+        student=world["student"], new_status="outside", actor=world["admin"]
+    )
+    assert PresenceEvent.objects.exists()
+
+    client.force_login(world["admin"])
+    response = client.post(
+        reverse("core:maintenance_reset"), {"confirmation": "TOROL MINDENT"}, follow=True
+    )
+
+    assert response.status_code == 200
+    assert not RoomCheckSession.objects.exists()
+    assert not PresenceEvent.objects.exists()
+    # Students and their room assignments survive: only operational data goes.
+    assert StudentProfile.objects.filter(pk=world["student"].pk).exists()
     assert world["student"].room_assignments.exists()

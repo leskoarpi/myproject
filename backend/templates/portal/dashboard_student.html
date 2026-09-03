@@ -8,7 +8,7 @@
   </div>
 </div>
 
-<div class="status-hero {% if presence.is_inside %}inside{% else %}outside{% endif %}">
+<div class="status-hero {% if is_inside %}inside{% else %}outside{% endif %}">
   <span class="status-dot" style="background: {{ presence.status.color }}; width:16px; height:16px"></span>
   <div>
     <div class="big">{{ presence.status.label }}</div>
@@ -18,38 +18,40 @@
 
 <div class="card">
   <h2>Jelenlét</h2>
-  <form method="post" action="{% url 'presence:self_return' %}" data-confirm="Rögzítjük, hogy bejöttél?">
-    {% csrf_token %}
-    <button class="btn ok btn-huge" type="submit">BEJÖTTEM</button>
-  </form>
-
-  <form method="post" action="{% url 'presence:self_leave' %}" data-confirm="Rögzítjük, hogy kimentél?">
-    {% csrf_token %}
-    <div class="field">
-      <label for="leave-status">Kimenetel oka</label>
-      <select id="leave-status" name="status" required>
-        {% for status in leave_statuses %}<option value="{{ status.code }}">{{ status.label }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="field">
-      <label for="leave-reason">Megjegyzés (opcionális)</label>
-      <input type="text" id="leave-reason" name="reason" maxlength="255" placeholder="Pl. fogorvos">
-    </div>
-    <button class="btn btn-huge" style="background:var(--warn-soft);border-color:#f0dcb6;color:var(--warn)" type="submit">KIMENTEM</button>
-  </form>
+  {% if is_inside %}
+    {# Inside: the only action that makes sense is going out. #}
+    <p class="small muted">Most bent vagy. Ha elhagyod a kollégiumot, jelöld itt.</p>
+    <form method="post" action="{% url 'presence:self_leave' %}" data-confirm="Rögzítjük, hogy kimentél?">
+      {% csrf_token %}
+      <div class="field">
+        <label for="leave-status">Kimenetel oka</label>
+        <select id="leave-status" name="status" required>
+          {% for status in leave_statuses %}<option value="{{ status.code }}">{{ status.label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="leave-reason">Megjegyzés (opcionális)</label>
+        <input type="text" id="leave-reason" name="reason" maxlength="255" placeholder="Pl. fogorvos">
+      </div>
+      <button class="btn btn-huge" style="background:var(--warn-soft);border-color:#f0dcb6;color:var(--warn)" type="submit">KIMENTEM</button>
+    </form>
+  {% else %}
+    {# Outside: the only action is coming back. #}
+    <p class="small muted">Most kint vagy. Amikor visszaérsz, jelöld itt.</p>
+    <form method="post" action="{% url 'presence:self_return' %}" data-confirm="Rögzítjük, hogy bejöttél?">
+      {% csrf_token %}
+      <button class="btn ok btn-huge" type="submit">BEJÖTTEM</button>
+    </form>
+  {% endif %}
 </div>
 
 <div class="grid cols-2">
-  {% if leave_module_on %}
+  {% if pass_module_on %}
   <div class="card">
-    <h2>Kimenő engedélyem</h2>
-    {% if leave_permission and leave_permission.is_active %}
-      <p><span class="badge ok">{{ leave_permission.get_status_display }}</span> {{ leave_permission.get_permission_type_display }}</p>
-      {% if leave_permission.value %}<p>{{ leave_permission.value }}</p>{% endif %}
-      {% if leave_permission.expires_at %}<p class="small muted">Érvényes: {{ leave_permission.expires_at|date:"Y. m. d. H:i" }}-ig</p>{% endif %}
-    {% else %}
-      <p class="muted">Jelenleg nincs érvényes kimenő engedélyed.</p>
-    {% endif %}
+    <h2>Kimenő jogosultságom</h2>
+    <p><span class="badge {{ pass_rule.badge_class }}">{{ pass_rule.get_eligibility_display }}</span></p>
+    {% if pass_rule.note %}<p class="small">{{ pass_rule.note }}</p>{% endif %}
+    <p class="small muted">Ezt a nevelőtanárod állítja be.</p>
   </div>
   {% endif %}
 

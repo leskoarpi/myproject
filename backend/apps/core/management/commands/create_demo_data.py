@@ -15,7 +15,8 @@ from django.utils import timezone
 
 from apps.accounts.capabilities import Role
 from apps.core.models import SchoolYear
-from apps.leave_permissions.services import grant_leave_permission
+from apps.leave_permissions.models import PassEligibility
+from apps.leave_permissions.services import set_pass_rule
 from apps.people.models import Group, Teacher
 from apps.presence.models import StatusType
 from apps.presence.services import change_student_presence, ensure_presence_row
@@ -123,12 +124,23 @@ class Command(BaseCommand):
                 enforce_permissions=False,
                 when=timezone.now() - dt.timedelta(hours=rng.randint(1, 20)),
             )
-            if rng.random() < 0.25:
-                grant_leave_permission(
+            roll = rng.random()
+            if roll < 0.12:
+                set_pass_rule(
                     student=student,
                     actor=management,
-                    value="Hétköznap 20:00-ig",
-                    expires_at=timezone.now() + dt.timedelta(days=rng.randint(1, 60)),
+                    eligibility=PassEligibility.TEACHER_ONLY,
+                )
+            elif roll < 0.18:
+                set_pass_rule(
+                    student=student, actor=management, eligibility=PassEligibility.DENIED
+                )
+            elif roll < 0.22:
+                set_pass_rule(
+                    student=student,
+                    actor=management,
+                    eligibility=PassEligibility.OTHER,
+                    note="Csak szülői egyeztetés után.",
                 )
             created += 1
 

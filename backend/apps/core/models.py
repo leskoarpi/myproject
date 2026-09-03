@@ -60,10 +60,11 @@ class SchoolYear(TimeStampedModel):
 
 class ModuleKey(models.TextChoices):
     EVENING_CHECK = "evening_check", "Esti ellenőrzés"
-    MORNING_CHECK = "morning_check", "Reggeli ellenőrzés"
-    ROOM_CHECKS = "room_checks", "Szobaellenőrzés"
+    # The morning round is no longer a module of its own: the teacher records
+    # room tidiness and each student's morning status in one pass.
+    ROOM_CHECKS = "room_checks", "Reggeli és szobaellenőrzés"
     WEEKEND_STAY = "weekend_stay", "Hétvégi bennmaradás"
-    LEAVE_PERMISSIONS = "leave_permissions", "Kimenő engedélyek"
+    PASS_RULES = "pass_rules", "Kimenő jogosultság"
 
 
 class SystemModule(TimeStampedModel):

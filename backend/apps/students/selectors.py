@@ -44,6 +44,31 @@ def student_queryset_for_user(user, *, include_archived=False):
     return base.none()
 
 
+def presence_queryset_for_user(user, *, include_archived=False):
+    """Students whose *presence* ``user`` may see and act on.
+
+    Deliberately wider than :func:`student_queryset_for_user`: presence is a
+    whole-building concern. Any staff member on duty answers for every floor,
+    so teachers, porters and management see the entire dormitory here. Access
+    to the student *record* - guardian contacts, medical notes - stays
+    group-scoped in the selector above.
+    """
+    base = StudentProfile.objects.select_related("user", "group")
+    if not include_archived:
+        base = base.active()
+
+    if not user or not user.is_authenticated or not user.is_active:
+        return base.none()
+
+    if user.role == Role.STUDENT:
+        return base.filter(user=user)
+
+    if user.is_superuser or user.has_capability(Capability.VIEW_PRESENCE):
+        return base
+
+    return base.none()
+
+
 def editable_student_queryset_for_user(user, *, include_archived=False):
     """Students ``user`` may modify at all (field-level rules apply on top)."""
     if not user or not user.is_authenticated:

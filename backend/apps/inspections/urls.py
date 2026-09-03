@@ -20,26 +20,19 @@ urlpatterns = [
         views.evening_release_lock,
         name="evening_release_lock",
     ),
-    # Morning
-    path("morning/", views.morning_index, name="morning_index"),
-    path("morning/generate/", views.morning_generate, name="morning_generate"),
-    path("morning/<int:snapshot_id>/", views.morning_detail, name="morning_detail"),
-    path("morning/item/<int:item_id>/review/", views.morning_review_item, name="morning_review"),
-    path("morning/<int:snapshot_id>/close/", views.morning_close, name="morning_close"),
-    path("morning/<int:snapshot_id>/reopen/", views.morning_reopen, name="morning_reopen"),
-    # Room checks
-    path("rooms/", views.roomcheck_index, name="roomcheck_index"),
-    path("rooms/<str:date>/floor/<int:floor>/", views.roomcheck_floor, name="roomcheck_floor"),
-    path("rooms/check/<int:check_id>/save/", views.roomcheck_save, name="roomcheck_save"),
+    # Morning round (room condition + resident status)
+    path("morning/", views.roomcheck_index, name="roomcheck_index"),
+    path("morning/<str:date>/floor/<int:floor>/", views.roomcheck_floor, name="roomcheck_floor"),
+    path("morning/check/<int:check_id>/save/", views.roomcheck_save, name="roomcheck_save"),
     path(
-        "rooms/check/<int:check_id>/student/<int:student_id>/",
+        "morning/check/<int:check_id>/student/<int:student_id>/",
         views.roomcheck_save_student,
         name="roomcheck_save_student",
     ),
-    path("rooms/session/<int:session_id>/close/", views.roomcheck_close, name="roomcheck_close"),
+    path("morning/session/<int:session_id>/close/", views.roomcheck_close, name="roomcheck_close"),
     path(
-        "rooms/session/<int:session_id>/reopen/", views.roomcheck_reopen, name="roomcheck_reopen"
+        "morning/session/<int:session_id>/reopen/", views.roomcheck_reopen, name="roomcheck_reopen"
     ),
-    path("rooms/history/", views.roomcheck_history, name="roomcheck_history"),
-    path("rooms/mine/", views.my_room_checks, name="my_room_checks"),
+    path("morning/history/", views.roomcheck_history, name="roomcheck_history"),
+    path("morning/mine/", views.my_room_checks, name="my_room_checks"),
 ]

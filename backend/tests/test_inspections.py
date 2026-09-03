@@ -1,4 +1,6 @@
-"""Evening inspection workflow, locking and state transitions (spec 16-18, 25-28)."""
+"""Evening inspection workflow, locking and state transitions (spec 16-18).
+
+The morning/room round lives in tests/test_morning_round.py."""
 
 import datetime as dt
 
@@ -7,21 +9,12 @@ from django.core.exceptions import PermissionDenied, ValidationError
 
 from apps.accounts.capabilities import Role
 from apps.dormcalendar.services import get_or_create_day
-from apps.inspections.models import (
-    EveningCheckResult,
-    InspectionState,
-    RoomCheck,
-    RoomCheckHistory,
-)
+from apps.inspections.models import EveningCheckResult, InspectionState
 from apps.inspections.services import (
     close_evening_session,
-    close_room_check_session,
     open_evening_session,
-    open_room_check_session,
     reopen_evening_session,
-    reopen_room_check_session,
     save_evening_result,
-    save_room_check,
 )
 from apps.inspections.services.evening import SessionLocked, acquire_session_lock
 from apps.presence.models import PresenceEvent, PresenceSource
@@ -156,70 +149,3 @@ def test_evening_check_is_refused_on_a_day_that_does_not_need_one(setup):
 
     with pytest.raises(ValidationError):
         open_evening_session(calendar_day=day, floor=1, actor=setup["admin"])
-
-
-# --------------------------------------------------------------------------
-# Room checks
-# --------------------------------------------------------------------------
-
-
-def test_room_check_session_prefills_a_row_per_room(setup):
-    session = open_room_check_session(
-        date=dt.date(2025, 11, 11), floor=1, actor=setup["admin"]
-    )
-    assert session.checks.count() == 1
-    assert session.checks.first().room == setup["room"]
-
-
-def test_saving_a_room_check_archives_the_previous_version(setup):
-    session = open_room_check_session(
-        date=dt.date(2025, 11, 11), floor=1, actor=setup["admin"]
-    )
-    check = session.checks.first()
-
-    save_room_check(room_check=check, actor=setup["admin"], rating=4, problems="por")
-    assert RoomCheckHistory.objects.count() == 0  # nothing to archive on the first save
-
-    save_room_check(room_check=check, actor=setup["admin"], rating=2, problems="rendetlen")
-
-    history = RoomCheckHistory.objects.get()
-    check.refresh_from_db()
-    assert history.previous_rating == 4
-    assert history.previous_problems == "por"
-    assert check.rating == 2
-
-
-def test_rating_must_be_within_the_scale(setup):
-    session = open_room_check_session(
-        date=dt.date(2025, 11, 11), floor=1, actor=setup["admin"]
-    )
-    check = session.checks.first()
-    with pytest.raises(ValidationError):
-        save_room_check(room_check=check, actor=setup["admin"], rating=9)
-
-
-def test_room_check_reopen_needs_the_capability(setup):
-    session = open_room_check_session(
-        date=dt.date(2025, 11, 11), floor=1, actor=setup["admin"]
-    )
-    close_room_check_session(session=session, actor=setup["admin"])
-
-    with pytest.raises(PermissionDenied):
-        reopen_room_check_session(session=session, actor=setup["teacher"].user)
-
-    assert (
-        reopen_room_check_session(session=session, actor=setup["admin"]).state
-        == InspectionState.OPEN
-    )
-
-
-def test_closed_room_session_refuses_edits(setup):
-    session = open_room_check_session(
-        date=dt.date(2025, 11, 11), floor=1, actor=setup["admin"]
-    )
-    check = session.checks.first()
-    close_room_check_session(session=session, actor=setup["admin"])
-
-    with pytest.raises(ValidationError):
-        save_room_check(room_check=check, actor=setup["admin"], rating=3)
-    assert RoomCheck.objects.get(pk=check.pk).rating is None
