@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Változtatási kérelmek{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Változtatási kérelmek</h1></div></div>
+
+<form class="filters" method="get">
+  <div><label for="status">Állapot</label>
+    <select id="status" name="status"><option value="">Mind</option>
+      {% for value, label in statuses %}<option value="{{ value }}" {% if value == selected_status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></div>
+  <div><button class="btn primary" type="submit">Szűrés</button></div>
+</form>
+
+{% for cr in requests %}
+<div class="card">
+  <h2>{{ cr.student.full_name }} <span class="badge {% if cr.status == 'approved' %}ok{% elif cr.status == 'rejected' %}bad{% else %}warn{% endif %}">{{ cr.get_status_display }}</span></h2>
+  <p class="small muted">{{ cr.created_at|date:"Y. m. d. H:i" }} · {{ cr.requested_by.display_name|default:"?" }}</p>
+  {% if cr.reason %}<p class="small">{{ cr.reason }}</p>{% endif %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Mező</th><th>Jelenlegi</th><th>Javasolt</th></tr></thead>
+      <tbody>
+      {% for field, value in cr.proposed_changes.items %}
+        <tr><td class="small">{{ field }}</td>
+            <td class="small muted">{% for k, v in cr.previous_values.items %}{% if k == field %}{{ v|default:"—" }}{% endif %}{% endfor %}</td>
+            <td class="small"><strong>{{ value|default:"—" }}</strong></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if can_review and cr.is_pending %}
+  <div class="actions" style="margin-top:12px">
+    <form method="post" action="{% url 'students:change_request_review' request_id=cr.pk %}" data-confirm="Jóváhagyod és alkalmazod a változtatásokat?">
+      {% csrf_token %}<input type="hidden" name="decision" value="approve">
+      <input type="text" name="note" placeholder="Megjegyzés" maxlength="255">
+      <button class="btn ok" type="submit">Jóváhagyás</button>
+    </form>
+    <form method="post" action="{% url 'students:change_request_review' request_id=cr.pk %}">
+      {% csrf_token %}<input type="hidden" name="decision" value="reject">
+      <button class="btn" type="submit">Elutasítás</button>
+    </form>
+  </div>
+  {% elif cr.review_note %}
+    <p class="small muted">Elbírálás: {{ cr.review_note }} ({{ cr.reviewed_by.display_name }})</p>
+  {% endif %}
+</div>
+{% empty %}
+<div class="card"><p class="empty">Nincs kérelem.</p></div>
+{% endfor %}
+{% endblock %}

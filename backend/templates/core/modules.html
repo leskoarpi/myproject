@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Modulok{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Modulok</h1>
+  <p class="subtitle">A kikapcsolt modul eltűnik a menüből, az oldalai és műveletei is tiltottak. A meglévő adatok érintetlenek maradnak.</p></div></div>
+
+<div class="grid cols-2">
+{% for m in modules %}
+  <div class="card">
+    <h2>{{ m.name }}
+      {% if m.is_enabled %}<span class="badge ok">bekapcsolva</span>{% else %}<span class="badge bad">kikapcsolva</span>{% endif %}
+    </h2>
+    <p class="small muted">{{ m.description|default:m.key }}</p>
+    <form method="post" action="{% url 'core:toggle_module' module_id=m.pk %}"
+          data-confirm="Biztosan {% if m.is_enabled %}kikapcsolod{% else %}bekapcsolod{% endif %} ezt a modult?">
+      {% csrf_token %}
+      <button class="btn {% if m.is_enabled %}{% else %}primary{% endif %}" type="submit">
+        {% if m.is_enabled %}Kikapcsolás{% else %}Bekapcsolás{% endif %}
+      </button>
+    </form>
+  </div>
+{% empty %}
+  <div class="card"><p class="empty">Nincsenek modulok felvéve. Futtasd a <code>seed_reference_data</code> parancsot.</p></div>
+{% endfor %}
+</div>
+{% endblock %}

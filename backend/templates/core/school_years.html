@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Tanévek{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Tanévek</h1><p class="subtitle">Egyszerre csak egy tanév lehet aktív</p></div></div>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Név</th><th>Kezdet</th><th>Vége</th><th>Állapot</th><th></th></tr></thead>
+      <tbody>
+      {% for y in years %}
+        <tr>
+          <td>{{ y.name }}</td>
+          <td class="mono small">{{ y.start_date|date:"Y. m. d." }}</td>
+          <td class="mono small">{{ y.end_date|date:"Y. m. d." }}</td>
+          <td>{% if y.is_active %}<span class="badge ok">aktív</span>{% else %}<span class="badge">lezárt</span>{% endif %}</td>
+          <td>{% if not y.is_active %}
+            <form method="post" action="{% url 'core:activate_year' year_id=y.pk %}" data-confirm="Ez lesz az aktív tanév?">
+              {% csrf_token %}<button class="btn small" type="submit">Aktiválás</button>
+            </form>{% endif %}</td>
+        </tr>
+      {% empty %}<tr><td colspan="5" class="empty">Nincs tanév.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" style="max-width:480px">
+  <h2>Új tanév</h2>
+  <form method="post">{% csrf_token %}{% include "_form.html" %}
+    <button class="btn primary" type="submit">Létrehozás</button>
+  </form>
+</div>
+{% endblock %}

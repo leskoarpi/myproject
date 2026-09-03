@@ -1,0 +1,20 @@
+<div class="grid cols-3" style="margin-bottom:14px">
+  <div class="stat ok"><div class="value">{{ summary.inside }}</div><div class="label">Bent</div></div>
+  <div class="stat warn"><div class="value">{{ summary.outside }}</div><div class="label">Kint</div></div>
+  <div class="stat"><div class="value">{{ summary.total }}</div><div class="label">Összesen</div></div>
+</div>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Név</th><th>Szoba</th><th>Státusz</th><th>Ekkortól</th>{% if can_edit %}<th>Módosítás</th>{% endif %}</tr>
+      </thead>
+      <tbody>
+        {% for presence in presences %}{% include "presence/_row.html" %}{% empty %}
+          <tr><td colspan="5" class="empty">Nincs találat.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

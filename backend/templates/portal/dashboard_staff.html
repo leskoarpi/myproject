@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Áttekintés{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ greeting }}, {{ user.display_name }}!</h1>
+    <p class="subtitle">{{ day.date|date:"Y. m. d." }} · {{ day.weekday_name }}{% if school_year %} · {{ school_year.name }}{% endif %}</p>
+  </div>
+</div>
+
+{% if summary %}
+<div class="grid cols-3" style="margin-bottom:16px">
+  <div class="stat ok"><div class="value">{{ summary.inside }}</div><div class="label">Bent</div></div>
+  <div class="stat warn"><div class="value">{{ summary.outside }}</div><div class="label">Kint</div></div>
+  <div class="stat"><div class="value">{{ summary.total }}</div><div class="label">Összes diák</div></div>
+</div>
+{% endif %}
+
+<div class="grid cols-2">
+  {% if evening %}
+  <div class="card">
+    <h2>Esti ellenőrzés <a class="btn small" href="{% url 'inspections:evening_index' %}">Megnyitás</a></h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Emelet</th><th>Állapot</th><th class="num">Haladás</th></tr></thead>
+        <tbody>
+        {% for row in evening %}
+          <tr>
+            <td><a href="{% url 'inspections:evening_floor' date=day.date|date:'Y-m-d' floor=row.floor %}">{{ row.floor }}. emelet</a></td>
+            <td>
+              {% if row.state == 'closed' %}<span class="badge ok">Lezárva</span>
+              {% elif row.state == 'open' %}<span class="badge warn">Folyamatban</span>
+              {% else %}<span class="badge">Nem indult</span>{% endif %}
+            </td>
+            <td class="num">{{ row.recorded }}/{{ row.expected }}</td>
+          </tr>
+        {% empty %}<tr><td colspan="3" class="empty">Nincsenek emeletek felvéve.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if morning is not None %}
+  <div class="card">
+    <h2>Reggeli ellenőrzés <a class="btn small" href="{% url 'inspections:morning_index' %}">Megnyitás</a></h2>
+    {% if morning %}
+      <p><span class="badge {% if morning.is_closed %}ok{% else %}warn{% endif %}">{{ morning.get_state_display }}</span>
+         {{ morning.items.count }} tétel</p>
+      <a class="btn" href="{% url 'inspections:morning_detail' snapshot_id=morning.pk %}">Áttekintés</a>
+    {% else %}
+      <p class="muted">Mára még nem készült pillanatkép.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if open_room_sessions is not None %}
+  <div class="card">
+    <h2>Szobaellenőrzés <a class="btn small" href="{% url 'inspections:roomcheck_index' %}">Megnyitás</a></h2>
+    <p>{{ open_room_sessions }} nyitott munkamenet</p>
+    <ul class="small">
+      {% for s in room_sessions|slice:":5" %}
+        <li><a href="{% url 'inspections:roomcheck_floor' date=s.date|date:'Y-m-d' floor=s.floor %}">{{ s.date|date:"m. d." }} · {{ s.floor }}. emelet</a> — {{ s.get_state_display }}</li>
+      {% empty %}<li class="muted">Nincs friss ellenőrzés.</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if weekend_start %}
+  <div class="card">
+    <h2>Hétvégi bennmaradás <a class="btn small" href="{% url 'weekend:index' %}">Megnyitás</a></h2>
+    <p class="small muted">{{ weekend_start|date:"Y. m. d." }}</p>
+    <p><span class="badge warn">{{ weekend_pending }} elbírálásra vár</span> <span class="badge ok">{{ weekend_approved }} jóváhagyva</span></p>
+  </div>
+  {% endif %}
+
+  {% if pending_change_requests %}
+  <div class="card">
+    <h2>Változtatási kérelmek</h2>
+    <p><span class="badge warn">{{ pending_change_requests }} vár elbírálásra</span></p>
+    <a class="btn" href="{% url 'students:change_requests' %}">Elbírálás</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

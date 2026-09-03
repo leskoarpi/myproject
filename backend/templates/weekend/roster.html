@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Hétvégi lista — {{ weekend_start|date:"Y. m. d." }}{% endblock %}
+{% block content %}
+<div class="page-head no-print">
+  <div><h1>Hétvégi bennmaradás</h1><p class="subtitle">{{ weekend_start|date:"Y. m. d." }} · A4 fekvő</p></div>
+  <div class="actions">
+    <a class="btn primary" href="?format=pdf">PDF letöltése</a>
+    <button class="btn" type="button" onclick="window.print()">Nyomtatás</button>
+  </div>
+</div>
+
+<h2 class="print-only" style="display:none">Hétvégi bennmaradás — {{ weekend_start|date:"Y. m. d." }}</h2>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Szoba</th><th>Név</th><th>Csoport</th>
+          <th>P. bent</th><th>P. este</th><th>Szo. reggel</th>
+          <th>Szo. bent</th><th>Szo. este</th><th>V. reggel</th>
+          <th>Megjegyzés</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td class="mono">{{ row.room|default:"—" }}</td>
+          <td>{{ row.name }}</td>
+          <td class="small">{{ row.group|default:"—" }}</td>
+          <td>{% if row.friday_stay %}✓{% else %}—{% endif %}</td>
+          <td>{{ row.friday_evening.get_result_display|default:"—" }}</td>
+          <td>{{ row.saturday_morning.get_result_display|default:"—" }}</td>
+          <td>{% if row.saturday_stay %}✓{% else %}—{% endif %}</td>
+          <td>{{ row.saturday_evening.get_result_display|default:"—" }}</td>
+          <td>{{ row.sunday_morning.get_result_display|default:"—" }}</td>
+          <td class="small">{{ row.note|truncatechars:40 }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="10" class="empty">Nincs jóváhagyott bennmaradó.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

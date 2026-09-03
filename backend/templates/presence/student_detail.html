@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ student.full_name }} — jelenlét{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ student.full_name }}</h1>
+    <p class="subtitle">{{ student.current_room|default:"nincs szoba" }} · {{ student.group|default:"nincs csoport" }}</p></div>
+  <a class="btn" href="{% url 'students:detail' student_id=student.pk %}">Adatlap</a>
+</div>
+
+<div class="status-hero {% if presence.is_inside %}inside{% else %}outside{% endif %}">
+  <span class="status-dot" style="background: {{ presence.status.color }}; width:16px; height:16px"></span>
+  <div><div class="big">{{ presence.status.label }}</div>
+    <div class="small muted">{{ presence.changed_at|date:"Y. m. d. H:i" }} · {{ presence.get_source_display }}</div></div>
+</div>
+
+{% if can_edit %}
+<div class="card">
+  <h2>Státusz módosítása</h2>
+  <form method="post" action="{% url 'presence:set_status' student_id=student.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.path }}">
+    <div class="field"><label for="status">Új státusz</label>
+      <select id="status" name="status">
+        {% for s in statuses %}<option value="{{ s.code }}" {% if s.pk == presence.status_id %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
+      </select></div>
+    <div class="field"><label for="reason">Megjegyzés</label><input type="text" id="reason" name="reason" maxlength="255"></div>
+    <button class="btn primary" type="submit">Mentés</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Időpont</th><th>Előző</th><th>Új</th><th>Ok</th><th>Forrás</th><th>Rögzítette</th></tr></thead>
+      <tbody>
+      {% for e in events %}
+        <tr>
+          <td class="small mono nowrap">{{ e.created_at|date:"Y. m. d. H:i" }}</td>
+          <td class="small muted">{{ e.old_status.label|default:"—" }}</td>
+          <td>{{ e.new_status.label }}</td>
+          <td class="small">{{ e.reason|default:"—" }}</td>
+          <td class="small"><span class="badge">{{ e.get_source_display }}</span></td>
+          <td class="small muted">{{ e.created_by.display_name|default:"rendszer" }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="empty">Nincs előzmény.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

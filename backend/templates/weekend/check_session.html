@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ session.get_check_type_display }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ session.get_check_type_display }}</h1>
+    <p class="subtitle">{{ session.check_date|date:"Y. m. d." }} ·
+      {% if session.is_closed %}<span class="badge ok">Lezárva</span>{% else %}<span class="badge warn">Nyitva</span>{% endif %}</p></div>
+  <a class="btn" href="{% url 'weekend:index' %}?weekend={{ session.weekend_start|date:'Y-m-d' }}">Vissza</a>
+</div>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Szoba</th><th>Név</th><th>Eredmény</th><th>Rögzítette</th></tr></thead>
+      <tbody>
+      {% for check in checks %}
+        <tr>
+          <td class="mono">{{ check.stay.room_number|default:"—" }}</td>
+          <td>{{ check.stay.display_name }}</td>
+          <td>
+            {% if can_edit %}
+            <form method="post" action="{% url 'weekend:record_check' session_id=session.pk stay_id=check.stay_id %}">
+              {% csrf_token %}
+              <select name="result" data-autosubmit aria-label="{{ check.stay.display_name }} eredménye">
+                {% for value, label in results %}<option value="{{ value }}" {% if check.result == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+              <noscript><button class="btn small" type="submit">Mentés</button></noscript>
+            </form>
+            {% else %}
+              <span class="badge {% if check.result == 'inside' %}ok{% elif check.result == 'outside' %}warn{% endif %}">{{ check.get_result_display }}</span>
+            {% endif %}
+          </td>
+          <td class="small muted">{% if check.checked_at %}{{ check.checked_at|date:"H:i" }} · {{ check.checked_by.display_name|default:"" }}{% endif %}</td>
+        </tr>
+      {% empty %}<tr><td colspan="4" class="empty">Ehhez az ellenőrzéshez nincs jóváhagyott bennmaradó.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="actions">
+  {% if session.is_open %}
+    <form method="post" action="{% url 'weekend:close_check' session_id=session.pk %}" data-confirm="Lezárod az ellenőrzést?">
+      {% csrf_token %}<button class="btn primary" type="submit">Lezárás</button>
+    </form>
+  {% elif can_reopen %}
+    <form method="post" action="{% url 'weekend:reopen_check' session_id=session.pk %}">
+      {% csrf_token %}<input type="text" name="reason" placeholder="Újranyitás oka" maxlength="255">
+      <button class="btn" type="submit">Újranyitás</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

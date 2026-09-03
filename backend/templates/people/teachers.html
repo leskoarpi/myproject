@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Nevelőtanárok és csoportok{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Nevelőtanárok és csoportok</h1></div>
+  <div class="actions">
+    {% if can_manage %}<a class="btn primary" href="{% url 'people:teacher_create' %}">Új tanár</a>
+      <a class="btn" href="{% url 'people:group_create' %}">Új csoport</a>{% endif %}
+    {% if can_import %}<a class="btn" href="{% url 'people:teacher_import' %}">CSV import</a>{% endif %}
+    {% if can_export %}<a class="btn" href="{% url 'people:teacher_export' %}">CSV export</a>{% endif %}
+  </div>
+</div>
+
+{% if temporary_passwords %}
+<div class="notice">
+  <strong>Ideiglenes jelszavak — csak most láthatók, nem naplózzuk őket:</strong>
+  <ul class="small">{% for username, password in temporary_passwords.items %}<li>{{ username }}: <code>{{ password }}</code></li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Név</th><th>Felhasználó</th><th>Elsődleges csoport</th><th>Csoportok</th><th>Jogkör</th>{% if can_manage %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+      {% for t in teachers %}
+        <tr>
+          <td>{{ t.full_name }}</td>
+          <td class="small mono">{{ t.user.username }}</td>
+          <td class="small">{{ t.primary_group.code|default:"—" }}</td>
+          <td class="small">{% for g in t.groups.all %}<span class="badge">{{ g.code }}</span> {% empty %}—{% endfor %}</td>
+          <td class="small">
+            {% if t.has_all_student_access %}<span class="badge info">minden diák</span>{% endif %}
+            {% if t.can_manage_all_weekend_stays %}<span class="badge info">hétvége teljes</span>{% endif %}
+          </td>
+          {% if can_manage %}<td><a class="btn small" href="{% url 'people:teacher_edit' teacher_id=t.pk %}">Szerkesztés</a></td>{% endif %}
+        </tr>
+      {% empty %}<tr><td colspan="6" class="empty">Nincs nevelőtanár.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Csoport</th><th>Név</th><th class="num">Diákok</th><th>Állapot</th>{% if can_manage %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+      {% for g in groups %}
+        <tr><td class="mono">{{ g.code }}</td><td>{{ g.name }}</td><td class="num">{{ g.student_count }}</td>
+          <td>{% if g.is_active %}<span class="badge ok">aktív</span>{% else %}<span class="badge">inaktív</span>{% endif %}</td>
+          {% if can_manage %}<td><a class="btn small" href="{% url 'people:group_edit' group_id=g.pk %}">Szerkesztés</a></td>{% endif %}
+        </tr>
+      {% empty %}<tr><td colspan="5" class="empty">Nincs csoport.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

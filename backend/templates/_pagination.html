@@ -1,0 +1,7 @@
+{% if page.has_other_pages %}
+<div class="pagination">
+  {% if page.has_previous %}<a class="btn small" href="?page={{ page.previous_page_number }}">Előző</a>{% endif %}
+  <span class="small muted">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="btn small" href="?page={{ page.next_page_number }}">Következő</a>{% endif %}
+</div>
+{% endif %}

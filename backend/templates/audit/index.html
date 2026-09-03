@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Auditnapló{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Auditnapló</h1>
+  <p class="subtitle">Ki mit módosított. Az érzékeny mezők értéke nem kerül a naplóba.</p></div></div>
+
+<form class="filters" method="get">
+  <div><label for="q">Keresés</label><input type="search" id="q" name="q" value="{{ search }}" placeholder="Felhasználó vagy rekord"></div>
+  <div><label for="action">Művelet</label>
+    <select id="action" name="action"><option value="">Mind</option>
+      {% for value, label in actions %}<option value="{{ value }}" {% if value == selected_action %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></div>
+  <div><button class="btn primary" type="submit">Szűrés</button></div>
+</form>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Időpont</th><th>Felhasználó</th><th>Művelet</th><th>Rekord</th><th>Változás</th><th>IP</th></tr></thead>
+      <tbody>
+      {% for e in page %}
+        <tr>
+          <td class="small mono nowrap">{{ e.created_at|date:"Y. m. d. H:i" }}</td>
+          <td class="small">{{ e.username|default:"rendszer" }}</td>
+          <td><span class="badge">{{ e.get_action_display }}</span></td>
+          <td class="small">{{ e.target_repr|truncatechars:50 }}<div class="muted">{{ e.target_type }}</div></td>
+          <td class="small muted">{% if e.new_value %}{{ e.new_value|truncatechars:80 }}{% else %}—{% endif %}</td>
+          <td class="small mono muted">{{ e.ip_address|default:"—" }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="empty">Nincs bejegyzés.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

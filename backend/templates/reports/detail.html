@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load report_tags %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ title }}</h1><p class="subtitle">{{ total }} sor{% if total > 1000 %} (az első 1000 jelenik meg){% endif %}</p></div>
+  <div class="actions">
+    {% if can_export and name != 'morning' %}
+      <a class="btn" href="{% url 'reports:export' name=name fmt='csv' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">CSV</a>
+      <a class="btn" href="{% url 'reports:export' name=name fmt='json' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">JSON</a>
+    {% elif can_export %}
+      <a class="btn" href="?format=csv">CSV</a>
+    {% endif %}
+    <a class="btn" href="{% url 'reports:index' %}">Vissza</a>
+  </div>
+</div>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>{% for c in columns %}<td class="small">{{ row|cell:c }}</td>{% endfor %}</tr>
+      {% empty %}<tr><td colspan="20" class="empty">Nincs adat.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

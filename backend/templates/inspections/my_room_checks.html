@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Szobám ellenőrzései{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Szobám ellenőrzései</h1>
+  <p class="subtitle">{% if room %}{{ room.number }}. szoba{% else %}Nincs szobabeosztásod{% endif %}</p></div></div>
+<div class="grid cols-2">
+{% for c in checks %}
+  <div class="card">
+    <h2>{{ c.session.date|date:"Y. m. d." }}
+      {% if c.rating %}<span class="badge {% if c.rating >= 4 %}ok{% elif c.rating <= 2 %}bad{% else %}warn{% endif %}">{{ c.rating }} / 5</span>{% endif %}
+    </h2>
+    {% if c.problems %}<p class="small"><strong>Hibák:</strong> {{ c.problems }}</p>{% endif %}
+    {% if c.notes %}<p class="small muted">{{ c.notes }}</p>{% endif %}
+  </div>
+{% empty %}
+  <div class="card"><p class="empty">Még nem volt ellenőrzés a szobádban.</p></div>
+{% endfor %}
+</div>
+{% endblock %}

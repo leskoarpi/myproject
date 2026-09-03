@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Szobaellenőrzés előzmények{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Szobaellenőrzés előzmények</h1><p class="subtitle">A korábbi verziók megőrizve</p></div></div>
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Dátum</th><th>Szoba</th><th>Értékelés</th><th>Hibák</th><th>Rögzítette</th><th class="num">Verziók</th></tr></thead>
+      <tbody>
+      {% for c in checks %}
+        <tr>
+          <td class="mono">{{ c.session.date|date:"Y. m. d." }}</td>
+          <td>{{ c.room.number }}</td>
+          <td>{% if c.rating %}<span class="badge {% if c.rating >= 4 %}ok{% elif c.rating <= 2 %}bad{% else %}warn{% endif %}">{{ c.rating }}</span>{% else %}—{% endif %}</td>
+          <td class="small">{{ c.problems|default:"—"|truncatechars:60 }}</td>
+          <td class="small muted">{{ c.checked_by.display_name|default:"—" }}</td>
+          <td class="num">{{ c.history_entries.count }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="empty">Nincs adat.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Diákok{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Diákok</h1><p class="subtitle">{{ page.paginator.count }} találat</p></div>
+  <div class="actions">
+    {% if can_create %}<a class="btn primary" href="{% url 'students:create' %}">Új diák</a>{% endif %}
+    <a class="btn" href="?archived={% if show_archived %}0{% else %}1{% endif %}">
+      {% if show_archived %}Aktívak{% else %}Archiváltak{% endif %}</a>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  {% if show_archived %}<input type="hidden" name="archived" value="1">{% endif %}
+  <div><label for="q">Keresés</label><input type="search" id="q" name="q" value="{{ search }}" placeholder="Név, osztály vagy szoba"></div>
+  <div><label for="group">Csoport</label>
+    <select id="group" name="group"><option value="">Mind</option>
+      {% for g in groups %}<option value="{{ g.pk }}" {% if selected_group == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.code }} — {{ g.name }}</option>{% endfor %}
+    </select></div>
+  <div><button class="btn primary" type="submit">Szűrés</button></div>
+</form>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Név</th><th>Szoba</th><th>Csoport</th><th>Osztály</th><th>Státusz</th></tr></thead>
+      <tbody>
+      {% for s in page %}
+        <tr>
+          <td><a href="{% url 'students:detail' student_id=s.pk %}">{{ s.full_name }}</a></td>
+          <td class="mono">{{ s.current_room.number|default:"—" }}</td>
+          <td class="small muted">{{ s.group.code|default:"—" }}</td>
+          <td class="small">{{ s.school_class|default:"—" }}</td>
+          <td>
+            {% if not s.is_active %}<span class="badge">archivált</span>
+            {% elif s.presence %}<span class="status-dot" style="background: {{ s.presence.status.color }}"></span>{{ s.presence.status.label }}
+            {% else %}<span class="muted">—</span>{% endif %}
+          </td>
+        </tr>
+      {% empty %}<tr><td colspan="5" class="empty">Nincs találat.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

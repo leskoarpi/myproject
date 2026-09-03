@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Karbantartás{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Karbantartás</h1>
+  <p class="subtitle">Az itt elérhető műveletek visszafordíthatatlanok lehetnek</p></div></div>
+
+<div class="grid cols-2" style="margin-bottom:16px">
+  <div class="stat"><div class="value">{{ counts.students }}</div><div class="label">Diák</div></div>
+  <div class="stat"><div class="value">{{ counts.archived_students }}</div><div class="label">Archivált diák</div></div>
+  <div class="stat"><div class="value">{{ counts.presence_events }}</div><div class="label">Jelenlét esemény</div></div>
+  <div class="stat"><div class="value">{{ counts.audit_entries }}</div><div class="label">Napló bejegyzés</div></div>
+</div>
+
+<div class="card">
+  <h2>Ajánlott eljárás</h2>
+  <ul class="small">
+    <li>Diákok esetén <strong>archiválás</strong>, nem törlés — a történeti adatok így érvényesek maradnak.</li>
+    <li>Bármilyen tömeges művelet előtt készíts adatbázis-mentést.</li>
+    <li>Minden itt indított művelet bekerül az auditnaplóba.</li>
+  </ul>
+</div>
+
+<div class="card" style="border-color: var(--bad)">
+  <h2 style="color: var(--bad)">Operatív adatok törlése</h2>
+  {% if not destructive_allowed %}
+    <div class="notice">Ebben a környezetben a destruktív műveletek ki vannak kapcsolva
+      (<code>ALLOW_DESTRUCTIVE_MAINTENANCE=false</code>). Éles rendszeren ez a helyes beállítás.</div>
+  {% elif not can_delete_all %}
+    <p class="muted">Ehhez a művelethez rendszergazdai jogosultság kell.</p>
+  {% else %}
+    <p class="small">Törli az ellenőrzési és hétvégi munkameneteket, valamint a jelenlét-eseményeket.
+       A diákokat, szobákat és a naplót <strong>nem</strong> érinti.</p>
+    <form method="post" action="{% url 'core:maintenance_reset' %}"
+          data-confirm="Ez visszafordíthatatlan. Készítettél mentést?">
+      {% csrf_token %}
+      <div class="field">
+        <label for="confirmation">Írd be pontosan: <code>TOROL MINDENT</code></label>
+        <input type="text" id="confirmation" name="confirmation" required autocomplete="off">
+      </div>
+      <button class="btn danger" type="submit">Végrehajtás</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

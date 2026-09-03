@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Szobaellenőrzés{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Szobaellenőrzés</h1><p class="subtitle">{{ date|date:"Y. m. d." }}</p></div>
+  <form method="get" class="actions">
+    <input type="date" name="date" value="{{ date|date:'Y-m-d' }}">
+    <button class="btn" type="submit">Váltás</button>
+  </form>
+</div>
+
+<div class="grid cols-3">
+  {% for row in rows %}
+  <div class="card">
+    <h2>{{ row.floor }}. emelet
+      {% if row.session %}
+        {% if row.session.is_closed %}<span class="badge ok">Lezárva</span>{% else %}<span class="badge warn">Nyitva</span>{% endif %}
+      {% else %}<span class="badge">Nem indult</span>{% endif %}
+    </h2>
+    <a class="btn primary" href="{% url 'inspections:roomcheck_floor' date=date|date:'Y-m-d' floor=row.floor %}">
+      {% if can_edit %}Ellenőrzés{% else %}Megtekintés{% endif %}
+    </a>
+  </div>
+  {% empty %}<div class="card"><p class="empty">Nincsenek szobák.</p></div>{% endfor %}
+</div>
+
+<div class="card">
+  <h2>Korábbi munkamenetek <a class="btn small" href="{% url 'inspections:roomcheck_history' %}">Előzmények</a></h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Dátum</th><th>Emelet</th><th>Állapot</th><th>Lezárta</th></tr></thead>
+      <tbody>
+      {% for s in recent %}
+        <tr>
+          <td class="mono"><a href="{% url 'inspections:roomcheck_floor' date=s.date|date:'Y-m-d' floor=s.floor %}">{{ s.date|date:"Y. m. d." }}</a></td>
+          <td>{{ s.floor }}.</td>
+          <td>{{ s.get_state_display }}</td>
+          <td class="small muted">{{ s.closed_by.display_name|default:"—" }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="4" class="empty">Nincs korábbi ellenőrzés.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ room.number }}. szoba{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ room.number }}. szoba</h1>
+    <p class="subtitle">{{ room.floor }}. emelet · {{ room.occupancy }}/{{ room.capacity }} fő</p></div>
+  <a class="btn" href="{% url 'rooms:list' %}">Vissza</a>
+</div>
+
+<div class="grid cols-2">
+  <div class="card">
+    <h2>Jelenlegi lakók</h2>
+    <ul>
+      {% for a in current %}<li><a href="{% url 'students:detail' student_id=a.student_id %}">{{ a.student.full_name }}</a></li>
+      {% empty %}<li class="muted">Üres szoba.</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="card" style="padding:0">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Diák</th><th>Tanév</th><th>Kezdet</th><th>Vége</th></tr></thead>
+        <tbody>
+        {% for a in history %}
+          <tr><td>{{ a.student.full_name }}</td><td class="small">{{ a.school_year.name }}</td>
+              <td class="small mono">{{ a.start_date|date:"Y. m. d." }}</td>
+              <td class="small mono">{{ a.end_date|date:"Y. m. d."|default:"aktív" }}</td></tr>
+        {% empty %}<tr><td colspan="4" class="empty">Nincs előzmény.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

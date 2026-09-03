@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Hétvégi bennmaradás{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Hétvégi bennmaradás</h1>
+  <p class="subtitle">{{ weekend_start|date:"Y. m. d." }}-i hétvége</p></div></div>
+
+{% if stay %}
+<div class="status-hero {% if stay.status == 'approved' %}inside{% endif %}">
+  <div>
+    <div class="big">{{ stay.get_status_display }}</div>
+    <div class="small muted">
+      Péntek: {% if stay.friday_stay %}igen{% else %}nem{% endif %} ·
+      Szombat: {% if stay.saturday_stay %}igen{% else %}nem{% endif %}
+      {% if stay.review_note %} · {{ stay.review_note }}{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Jelentkezés</h2>
+  <form method="post" data-confirm="Elküldöd a kérelmet?">
+    {% csrf_token %}
+    <div class="checkline">
+      <input type="checkbox" id="friday_stay" name="friday_stay" value="1" {% if stay.friday_stay %}checked{% endif %}>
+      <label for="friday_stay">Péntek éjszaka bent maradok</label>
+    </div>
+    <div class="checkline">
+      <input type="checkbox" id="saturday_stay" name="saturday_stay" value="1" {% if stay.saturday_stay %}checked{% endif %}>
+      <label for="saturday_stay">Szombat éjszaka bent maradok</label>
+    </div>
+    <div class="field"><label for="note">Megjegyzés</label>
+      <textarea id="note" name="note" rows="2">{% if stay %}{{ stay.note }}{% endif %}</textarea></div>
+    <button class="btn primary btn-huge" type="submit">Küldés</button>
+  </form>
+  {% if stay and stay.status == 'pending' %}
+    <form method="post" action="{% url 'weekend:cancel' stay_id=stay.pk %}" data-confirm="Visszavonod a kérelmet?">
+      {% csrf_token %}<button class="btn" type="submit">Kérelem visszavonása</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Hétvége</th><th>Péntek</th><th>Szombat</th><th>Állapot</th></tr></thead>
+      <tbody>
+      {% for h in history %}
+        <tr>
+          <td class="mono">{{ h.weekend_start|date:"Y. m. d." }}</td>
+          <td>{% if h.friday_stay %}✓{% else %}—{% endif %}</td>
+          <td>{% if h.saturday_stay %}✓{% else %}—{% endif %}</td>
+          <td><span class="badge {% if h.status == 'approved' %}ok{% elif h.status == 'rejected' %}bad{% else %}warn{% endif %}">{{ h.get_status_display }}</span></td>
+        </tr>
+      {% empty %}<tr><td colspan="4" class="empty">Még nem jelentkeztél hétvégére.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

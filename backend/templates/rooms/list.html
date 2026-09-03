@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Szobák{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Szobák</h1></div>
+  <div class="actions">
+    {% if can_manage %}<a class="btn primary" href="{% url 'rooms:create' %}">Új szoba</a>{% endif %}
+    {% if can_import %}<a class="btn" href="{% url 'rooms:import' %}">CSV import</a>{% endif %}
+    {% if can_export %}<a class="btn" href="{% url 'rooms:export' %}">CSV export</a>{% endif %}
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <div><label for="q">Szobaszám</label><input type="search" id="q" name="q" value="{{ search }}"></div>
+  <div><label for="floor">Emelet</label>
+    <select id="floor" name="floor"><option value="">Mind</option>
+      {% for f in floors %}<option value="{{ f }}" {% if selected_floor == f|stringformat:"s" %}selected{% endif %}>{{ f }}. emelet</option>{% endfor %}
+    </select></div>
+  <div><button class="btn primary" type="submit">Szűrés</button></div>
+</form>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Szoba</th><th>Emelet</th><th class="num">Kapacitás</th><th class="num">Lakók</th><th>Állapot</th>{% if can_manage %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+      {% for r in rooms %}
+        <tr>
+          <td class="mono"><a href="{% url 'rooms:detail' room_id=r.pk %}">{{ r.number }}</a></td>
+          <td>{{ r.floor }}.</td>
+          <td class="num">{{ r.capacity }}</td>
+          <td class="num">{{ r.occupancy_count }}</td>
+          <td>{% if r.is_active %}<span class="badge ok">aktív</span>{% else %}<span class="badge">inaktív</span>{% endif %}</td>
+          {% if can_manage %}<td><a class="btn small" href="{% url 'rooms:edit' room_id=r.pk %}">Szerkesztés</a></td>{% endif %}
+        </tr>
+      {% empty %}<tr><td colspan="6" class="empty">Nincs szoba.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

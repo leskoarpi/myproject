@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% block title %}Nincs jogosultság{% endblock %}
+{% block content %}<div class="card"><h2>403 — Nincs jogosultság</h2><p class="muted">Ehhez a művelethez nincs jogosultságod, vagy a modul ki van kapcsolva.</p><a class="btn" href="{% url 'portal:dashboard' %}">Vissza</a></div>{% endblock %}
+{% block anon_content %}<div class="auth-page"><div class="card"><h2>403 — Nincs jogosultság</h2><a class="btn" href="{% url 'accounts:login' %}">Belépés</a></div></div>{% endblock %}

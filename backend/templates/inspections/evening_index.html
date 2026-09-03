@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Esti ellenőrzés{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Esti ellenőrzés</h1><p class="subtitle">{{ day.date|date:"Y. m. d." }} · {{ day.weekday_name }}</p></div>
+  <form method="get" class="actions">
+    <input type="date" name="date" value="{{ day.date|date:'Y-m-d' }}">
+    <button class="btn" type="submit">Váltás</button>
+  </form>
+</div>
+
+{% if not day.evening_check_required %}
+  <div class="notice">Erre a napra a naptár szerint nincs esti ellenőrzés előírva.</div>
+{% endif %}
+
+<div class="grid cols-2">
+  {% for row in overview %}
+  <div class="card">
+    <h2>{{ row.floor }}. emelet
+      {% if row.state == 'closed' %}<span class="badge ok">Lezárva</span>
+      {% elif row.state == 'open' %}<span class="badge warn">Folyamatban</span>
+      {% else %}<span class="badge">Nem indult</span>{% endif %}
+    </h2>
+    <div class="progress {% if row.percent >= 100 %}done{% endif %}"><span style="width: {{ row.percent }}%"></span></div>
+    <p class="small muted">{{ row.recorded }} / {{ row.expected }} diák rögzítve</p>
+    {% if row.session and row.session.locked_by %}
+      <p class="small warn">Szerkeszti: {{ row.session.locked_by.display_name }}</p>
+    {% endif %}
+    <a class="btn primary" href="{% url 'inspections:evening_floor' date=day.date|date:'Y-m-d' floor=row.floor %}">
+      {% if can_edit %}Ellenőrzés{% else %}Megtekintés{% endif %}
+    </a>
+  </div>
+  {% empty %}
+  <div class="card"><p class="empty">Nincsenek aktív szobák, ezért emeletek sem.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

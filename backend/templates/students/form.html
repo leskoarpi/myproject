@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{% if creating %}Új diák{% else %}{{ student.full_name }} szerkesztése{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% if creating %}Új diák{% else %}{{ student.full_name }}{% endif %}</h1>
+  {% if not creating %}<p class="subtitle">Csak a jogosultságodnak megfelelő mezők jelennek meg.</p>{% endif %}</div></div>
+<div class="card" style="max-width:640px">
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    {% include "_form.html" %}
+    <div class="actions">
+      <button class="btn primary" type="submit">Mentés</button>
+      <a class="btn" href="{% if student %}{% url 'students:detail' student_id=student.pk %}{% else %}{% url 'students:list' %}{% endif %}">Mégse</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Kezdőlap{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ greeting }}, {{ student.full_name }}!</h1>
+    <p class="subtitle">{% if room %}{{ room.number }}. szoba · {{ room.floor }}. emelet{% else %}Nincs szobabeosztásod{% endif %}</p>
+  </div>
+</div>
+
+<div class="status-hero {% if presence.is_inside %}inside{% else %}outside{% endif %}">
+  <span class="status-dot" style="background: {{ presence.status.color }}; width:16px; height:16px"></span>
+  <div>
+    <div class="big">{{ presence.status.label }}</div>
+    <div class="small muted">{{ presence.changed_at|date:"Y. m. d. H:i" }}{% if presence.note %} · {{ presence.note }}{% endif %}</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Jelenlét</h2>
+  <form method="post" action="{% url 'presence:self_return' %}" data-confirm="Rögzítjük, hogy bejöttél?">
+    {% csrf_token %}
+    <button class="btn ok btn-huge" type="submit">BEJÖTTEM</button>
+  </form>
+
+  <form method="post" action="{% url 'presence:self_leave' %}" data-confirm="Rögzítjük, hogy kimentél?">
+    {% csrf_token %}
+    <div class="field">
+      <label for="leave-status">Kimenetel oka</label>
+      <select id="leave-status" name="status" required>
+        {% for status in leave_statuses %}<option value="{{ status.code }}">{{ status.label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="leave-reason">Megjegyzés (opcionális)</label>
+      <input type="text" id="leave-reason" name="reason" maxlength="255" placeholder="Pl. fogorvos">
+    </div>
+    <button class="btn btn-huge" style="background:var(--warn-soft);border-color:#f0dcb6;color:var(--warn)" type="submit">KIMENTEM</button>
+  </form>
+</div>
+
+<div class="grid cols-2">
+  {% if leave_module_on %}
+  <div class="card">
+    <h2>Kimenő engedélyem</h2>
+    {% if leave_permission and leave_permission.is_active %}
+      <p><span class="badge ok">{{ leave_permission.get_status_display }}</span> {{ leave_permission.get_permission_type_display }}</p>
+      {% if leave_permission.value %}<p>{{ leave_permission.value }}</p>{% endif %}
+      {% if leave_permission.expires_at %}<p class="small muted">Érvényes: {{ leave_permission.expires_at|date:"Y. m. d. H:i" }}-ig</p>{% endif %}
+    {% else %}
+      <p class="muted">Jelenleg nincs érvényes kimenő engedélyed.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if weekend_module_on %}
+  <div class="card">
+    <h2>Hétvégi bennmaradás</h2>
+    <p class="small muted">{{ weekend_start|date:"Y. m. d." }}-i hétvége</p>
+    {% if weekend_stay %}
+      <p>
+        <span class="badge {% if weekend_stay.status == 'approved' %}ok{% elif weekend_stay.status == 'rejected' %}bad{% else %}warn{% endif %}">
+          {{ weekend_stay.get_status_display }}
+        </span>
+      </p>
+      <p class="small">Péntek: {% if weekend_stay.friday_stay %}igen{% else %}nem{% endif %} · Szombat: {% if weekend_stay.saturday_stay %}igen{% else %}nem{% endif %}</p>
+    {% else %}
+      <p class="muted">Még nem jelentkeztél.</p>
+    {% endif %}
+    <a class="btn" href="{% url 'weekend:my_stay' %}">Jelentkezés / módosítás</a>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Szobám</h2>
+    {% if room %}
+      <p><strong>{{ room.number }}</strong> · {{ room.floor }}. emelet · {{ room.occupancy }}/{{ room.capacity }} fő</p>
+      <a class="btn" href="{% url 'inspections:my_room_checks' %}">Szobaellenőrzések</a>
+    {% else %}
+      <p class="muted">Nincs aktív szobabeosztásod.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

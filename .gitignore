@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+backend/staticfiles/
+backend/media/
+.pytest_cache/
+.coverage
+htmlcov/
+*.sqlite3
+.DS_Store
+.idea/
+.vscode/
+
+# Database snapshots taken by the restore-point workflow
+backups/

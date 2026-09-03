@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Esti ellenőrzés — {{ floor }}. emelet{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ floor }}. emelet</h1>
+    <p class="subtitle">{{ day.date|date:"Y. m. d." }} ·
+      {% if session.is_closed %}<span class="badge ok">Lezárva</span>{% else %}<span class="badge warn">Nyitva</span>{% endif %}
+    </p>
+  </div>
+  <a class="btn" href="{% url 'inspections:evening_index' %}">Vissza</a>
+</div>
+
+{% if lock_error %}<div class="notice">{{ lock_error }} Csak megtekintheted az adatokat.</div>{% endif %}
+
+<div class="card">
+  <div class="progress {% if progress.complete %}done{% endif %}"><span style="width: {{ progress.percent }}%"></span></div>
+  <p class="small muted">{{ progress.recorded }} / {{ progress.expected }} rögzítve · {{ progress.inside }} bent · {{ progress.outside }} kint</p>
+</div>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Szoba</th><th>Név</th><th>Eredmény</th><th>Megjegyzés</th></tr></thead>
+      <tbody>
+        {% for student, result in rows %}
+          {% include "inspections/_evening_row.html" %}
+        {% empty %}
+          <tr><td colspan="4" class="empty">Ezen az emeleten nincs beosztott diák.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="actions">
+  {% if session.is_open and can_edit %}
+    <form method="post" action="{% url 'inspections:evening_close' session_id=session.pk %}" data-confirm="Biztosan lezárod az emeletet?">
+      {% csrf_token %}
+      <button class="btn primary" type="submit">Emelet lezárása</button>
+    </form>
+    {% if progress.missing %}
+      <form method="post" action="{% url 'inspections:evening_close' session_id=session.pk %}" data-confirm="{{ progress.missing }} diák nincs rögzítve. Mégis lezárod?">
+        {% csrf_token %}<input type="hidden" name="allow_incomplete" value="1">
+        <button class="btn" type="submit">Lezárás hiányosan</button>
+      </form>
+    {% endif %}
+  {% endif %}
+  {% if session.is_closed and can_reopen %}
+    <form method="post" action="{% url 'inspections:evening_reopen' session_id=session.pk %}">
+      {% csrf_token %}
+      <input type="text" name="reason" placeholder="Újranyitás oka" maxlength="255">
+      <button class="btn" type="submit">Újranyitás</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

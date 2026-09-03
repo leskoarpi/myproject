@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ student.full_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ student.full_name }}</h1>
+    <p class="subtitle">
+      {{ student.current_room|default:"nincs szoba" }} · {{ student.group|default:"nincs csoport" }}
+      {% if not student.is_active %}<span class="badge">archivált</span>{% endif %}
+    </p></div>
+  <div class="actions">
+    {% if can_edit %}<a class="btn primary" href="{% url 'students:edit' student_id=student.pk %}">Szerkesztés</a>{% endif %}
+    {% if can_request_changes %}<a class="btn" href="{% url 'students:change_request_create' student_id=student.pk %}">Változtatás kérése</a>{% endif %}
+    <a class="btn" href="{% url 'presence:student_detail' student_id=student.pk %}">Jelenlét</a>
+  </div>
+</div>
+
+<div class="grid cols-2">
+  <div class="card">
+    <h2>Alapadatok</h2>
+    <table>
+      <tr><th>Oktatási azonosító</th><td class="mono">{{ student.education_id|default:"—" }}</td></tr>
+      <tr><th>Születési dátum</th><td>{{ student.birth_date|date:"Y. m. d."|default:"—" }}</td></tr>
+      <tr><th>Iskola</th><td>{{ student.school_name|default:"—" }}</td></tr>
+      <tr><th>Osztály</th><td>{{ student.school_class|default:"—" }}</td></tr>
+      <tr><th>Beköltözés</th><td>{{ student.move_in_date|date:"Y. m. d."|default:"—" }}</td></tr>
+      <tr><th>Kiköltözés</th><td>{{ student.move_out_date|date:"Y. m. d."|default:"—" }}</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Kapcsolat {% if not show_sensitive %}<span class="badge">korlátozott</span>{% endif %}</h2>
+    {% if show_sensitive %}
+    <table>
+      <tr><th>Telefon</th><td>{{ student.phone|default:"—" }}</td></tr>
+      <tr><th>Cím</th><td>{{ student.address|default:"—" }}</td></tr>
+      <tr><th>Gondviselő</th><td>{{ student.guardian_name|default:"—" }}</td></tr>
+      <tr><th>Gondviselő telefon</th><td>{{ student.guardian_phone|default:"—" }}</td></tr>
+      <tr><th>Gondviselő e-mail</th><td>{{ student.guardian_email|default:"—" }}</td></tr>
+      <tr><th>Vészhelyzeti kapcsolat</th><td>{{ student.emergency_contact_name|default:"—" }} {{ student.emergency_contact_phone }}</td></tr>
+    </table>
+    <h2 style="margin-top:14px;font-size:15px">Egészségügyi megjegyzés</h2>
+    <p class="small">{{ student.medical_notes|default:"—"|linebreaksbr }}</p>
+    {% else %}
+      <p class="muted small">Ezek az adatok személyes jellegűek; megtekintésükhöz külön jogosultság kell.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Szobabeosztás</h2>
+    {% if can_assign %}
+    <form method="post" action="{% url 'students:assign_room' student_id=student.pk %}">
+      {% csrf_token %}
+      <div class="field"><label for="room">Szoba</label>
+        <select id="room" name="room">
+          <option value="">— beosztás lezárása —</option>
+          {% for r in rooms %}
+            <option value="{{ r.pk }}" {% if student.current_room and student.current_room.pk == r.pk %}selected{% endif %}>
+              {{ r.number }} ({{ r.occupancy }}/{{ r.capacity }})
+            </option>
+          {% endfor %}
+        </select></div>
+      <div class="checkline"><input type="checkbox" id="allow_overfill" name="allow_overfill" value="1">
+        <label for="allow_overfill">Túltöltés engedélyezése</label></div>
+      <button class="btn primary" type="submit">Mentés</button>
+    </form>
+    {% endif %}
+    <div class="table-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>Szoba</th><th>Tanév</th><th>Kezdet</th><th>Vége</th></tr></thead>
+        <tbody>
+        {% for a in assignments %}
+          <tr><td class="mono">{{ a.room.number }}</td><td class="small">{{ a.school_year.name }}</td>
+              <td class="small mono">{{ a.start_date|date:"Y. m. d." }}</td>
+              <td class="small mono">{{ a.end_date|date:"Y. m. d."|default:"aktív" }}</td></tr>
+        {% empty %}<tr><td colspan="4" class="empty">Nincs beosztás.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Változtatási kérelmek</h2>
+    <ul class="small">
+      {% for cr in change_requests %}
+        <li>{{ cr.created_at|date:"Y. m. d." }} — <span class="badge">{{ cr.get_status_display }}</span>
+            {{ cr.proposed_changes|length }} mező ({{ cr.requested_by.display_name|default:"?" }})</li>
+      {% empty %}<li class="muted">Nincs kérelem.</li>{% endfor %}
+    </ul>
+
+    {% if can_archive %}
+    <div class="actions" style="margin-top:12px">
+      {% if student.is_active %}
+        <form method="post" action="{% url 'students:archive' student_id=student.pk %}" data-confirm="Archiválod a diákot? A történeti adatok megmaradnak.">
+          {% csrf_token %}<button class="btn danger" type="submit">Archiválás</button>
+        </form>
+      {% else %}
+        <form method="post" action="{% url 'students:reactivate' student_id=student.pk %}">
+          {% csrf_token %}<button class="btn" type="submit">Visszaállítás</button>
+        </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

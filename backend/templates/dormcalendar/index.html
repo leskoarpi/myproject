@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Naptár{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Naptár</h1><p class="subtitle">{{ year }}. {{ month }}. hónap{% if school_year %} · {{ school_year.name }}{% endif %}</p></div>
+  <div class="actions">
+    <form method="get" class="actions">
+      <input type="number" name="year" value="{{ year }}" min="2000" max="2100" style="width:100px">
+      <input type="number" name="month" value="{{ month }}" min="1" max="12" style="width:80px">
+      <button class="btn" type="submit">Váltás</button>
+    </form>
+    <form method="post" action="{% url 'dormcalendar:generate' %}">
+      {% csrf_token %}<button class="btn primary" type="submit">Hiányzó napok pótlása</button>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Dátum</th><th>Nap</th><th>Típus</th><th>Esti ellenőrzés</th><th>Megjegyzés</th><th></th></tr></thead>
+      <tbody>
+      {% for d in days %}
+        <tr>
+          <td class="mono">{{ d.date|date:"Y. m. d." }}</td>
+          <td class="small muted">{{ d.weekday_name }}</td>
+          <td>
+            <form method="post" action="{% url 'dormcalendar:update_day' day_id=d.pk %}" id="cal-{{ d.pk }}">{% csrf_token %}</form>
+            <select name="status" form="cal-{{ d.pk }}">
+              {% for value, label in statuses %}<option value="{{ value }}" {% if d.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </td>
+          <td>
+            <select name="evening_check_required" form="cal-{{ d.pk }}">
+              <option value="1" {% if d.evening_check_required %}selected{% endif %}>Kell</option>
+              <option value="0" {% if not d.evening_check_required %}selected{% endif %}>Nem kell</option>
+            </select>
+          </td>
+          <td><input type="text" name="note" value="{{ d.note }}" maxlength="255" form="cal-{{ d.pk }}"></td>
+          <td><button class="btn small" type="submit" form="cal-{{ d.pk }}">Mentés</button></td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="empty">Erre a hónapra nincs naptári nap. Használd a „Hiányzó napok pótlása” gombot.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

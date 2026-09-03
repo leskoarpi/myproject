@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Riportok{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Riportok</h1><p class="subtitle">A riportok a lekérdezési rétegből épülnek, jogosultságra szűrve</p></div>
+  {% if can_export %}<a class="btn primary" href="{% url 'reports:export_bundle' %}">Csomag letöltése (ZIP)</a>{% endif %}
+</div>
+
+<form class="filters" method="get" id="period">
+  <div><label for="start">Kezdet</label><input type="date" id="start" name="start" value="{{ start|date:'Y-m-d' }}"></div>
+  <div><label for="end">Vége</label><input type="date" id="end" name="end" value="{{ end|date:'Y-m-d' }}"></div>
+</form>
+
+<div class="grid cols-3">
+{% for name, title in reports.items %}
+  <div class="card">
+    <h2 style="font-size:15px">{{ title }}</h2>
+    <div class="actions">
+      <a class="btn small" href="{% url 'reports:detail' name=name %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">Megnyitás</a>
+      {% if can_export %}
+        <a class="btn small" href="{% url 'reports:export' name=name fmt='csv' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">CSV</a>
+        <a class="btn small" href="{% url 'reports:export' name=name fmt='json' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">JSON</a>
+      {% endif %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

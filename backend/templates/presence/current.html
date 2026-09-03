@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Aktuális jelenlét{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Aktuális jelenlét</h1><p class="subtitle">30 másodpercenként frissül</p></div>
+</div>
+
+<form class="filters" method="get">
+  <div><label for="q">Keresés</label><input type="search" id="q" name="q" value="{{ search }}" placeholder="Név vagy szoba"></div>
+  <div><label for="status">Státusz</label>
+    <select id="status" name="status">
+      <option value="">Mind</option>
+      {% for s in statuses %}<option value="{{ s.code }}" {% if s.code == selected_status %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div><label for="floor">Emelet</label><input type="number" id="floor" name="floor" value="{{ selected_floor }}" min="0" max="20"></div>
+  <div><button class="btn primary" type="submit">Szűrés</button></div>
+</form>
+
+<div data-poll="{% url 'presence:current' %}" data-poll-interval="30">
+  {% include "presence/_current_table.html" %}
+</div>
+{% endblock %}

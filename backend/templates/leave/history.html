@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Engedély előzmények{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Kimenő engedély előzmények</h1><p class="subtitle">Az előzmények nem módosíthatók</p></div></div>
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Időpont</th><th>Diák</th><th>Művelet</th><th>Előző</th><th>Új</th><th>Rögzítette</th></tr></thead>
+      <tbody>
+      {% for e in page %}
+        <tr>
+          <td class="small mono nowrap">{{ e.created_at|date:"Y. m. d. H:i" }}</td>
+          <td>{{ e.student.full_name }}</td>
+          <td><span class="badge">{{ e.get_action_display }}</span></td>
+          <td class="small muted">{{ e.previous_status|default:"—" }}</td>
+          <td class="small">{{ e.new_status|default:"—" }}</td>
+          <td class="small muted">{{ e.created_by.display_name|default:"rendszer" }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="empty">Nincs bejegyzés.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

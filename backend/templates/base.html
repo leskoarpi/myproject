@@ -1,0 +1,52 @@
+{% load static %}<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>{% block title %}Deák Koli{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'js/app.js' %}" defer></script>
+</head>
+<body>
+{% if user.is_authenticated %}
+<header class="topbar">
+  <button class="menu-toggle" type="button" aria-label="Menü" aria-expanded="false" data-menu-toggle>☰</button>
+  <a class="brand" href="{% url 'portal:dashboard' %}">Deák Koli</a>
+  <span class="spacer"></span>
+  <span class="who">{{ user.display_name }}</span>
+  <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
+    <button class="btn small" type="submit">Kilépés</button>
+  </form>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar">
+    {% for item in nav_items %}
+      <div class="group">
+        <a href="{{ item.url }}">{{ item.label }}</a>
+        {% if item.children %}
+          <div class="sub">
+            {% for child in item.children %}<a href="{{ child.url }}">{{ child.label }}</a>{% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+    <div class="group"><a href="{% url 'accounts:profile' %}">Profil</a></div>
+    <div class="group"><a href="{% url 'accounts:password_change' %}">Jelszóváltás</a></div>
+  </nav>
+
+  <main>
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+  {% block anon_content %}{% endblock %}
+{% endif %}
+</body>
+</html>

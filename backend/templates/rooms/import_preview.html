@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Import előnézet{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Import előnézet</h1>
+  <p class="subtitle">Semmi nem került még mentésre</p></div></div>
+
+<div class="grid cols-3" style="margin-bottom:14px">
+  <div class="stat ok"><div class="value">{{ preview.creates|length }}</div><div class="label">Új szoba</div></div>
+  <div class="stat warn"><div class="value">{{ preview.conflicts|length }}</div><div class="label">Ütközés</div></div>
+  <div class="stat bad"><div class="value">{{ preview.error_rows|length }}</div><div class="label">Hibás sor</div></div>
+</div>
+
+{% if preview.error_rows %}
+<div class="card">
+  <h2>Hibás sorok</h2>
+  <p class="small muted">Ezek a sorok kimaradnak az importból.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Sor</th><th>Szoba</th><th>Hibák</th></tr></thead>
+      <tbody>
+      {% for row in preview.error_rows %}
+        <tr><td class="num">{{ row.line_number }}</td><td class="mono">{{ row.raw.number }}</td>
+            <td class="small" style="color:var(--bad)">{{ row.errors|join:" " }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<form method="post" action="{% url 'rooms:import_apply' %}">
+  {% csrf_token %}
+
+  {% if preview.conflicts %}
+  <div class="card">
+    <h2>Ütközések — válaszd ki, mit írjunk felül</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Felülír</th><th>Szoba</th><th>Változások</th></tr></thead>
+        <tbody>
+        {% for row in preview.conflicts %}
+          <tr>
+            <td><input type="checkbox" name="overwrite" value="{{ row.existing_id }}" id="ow-{{ row.existing_id }}"></td>
+            <td class="mono"><label for="ow-{{ row.existing_id }}">{{ row.data.number }}</label></td>
+            <td class="small">
+              {% for field, pair in row.differences.items %}
+                <div>{{ field }}: <span class="muted">{{ pair.0 }}</span> → <strong>{{ pair.1 }}</strong></div>
+              {% endfor %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if preview.creates %}
+  <div class="card">
+    <h2>Új szobák</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Szoba</th><th>Emelet</th><th class="num">Kapacitás</th></tr></thead>
+        <tbody>
+        {% for row in preview.creates %}
+          <tr><td class="mono">{{ row.data.number }}</td><td>{{ row.data.floor }}</td><td class="num">{{ row.data.capacity }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="actions">
+    <button class="btn primary" type="submit" data-confirm="Alkalmazod az importot?">Import alkalmazása</button>
+    <a class="btn" href="{% url 'rooms:import' %}">Mégse</a>
+  </div>
+</form>
+{% endblock %}

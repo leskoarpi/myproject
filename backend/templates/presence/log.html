@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Jelenléti napló{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Jelenléti napló</h1><p class="subtitle">Minden státuszváltás megőrzött előzménye</p></div></div>
+
+<form class="filters" method="get">
+  <div><label for="q">Diák</label><input type="search" id="q" name="q" value="{{ search }}"></div>
+  <div><label for="source">Forrás</label>
+    <select id="source" name="source">
+      <option value="">Mind</option>
+      <option value="student" {% if selected_source == 'student' %}selected{% endif %}>Diák</option>
+      <option value="teacher" {% if selected_source == 'teacher' %}selected{% endif %}>Nevelőtanár</option>
+      <option value="porter" {% if selected_source == 'porter' %}selected{% endif %}>Portás</option>
+      <option value="admin" {% if selected_source == 'admin' %}selected{% endif %}>Adminisztrátor</option>
+      <option value="evening_check" {% if selected_source == 'evening_check' %}selected{% endif %}>Esti ellenőrzés</option>
+      <option value="system" {% if selected_source == 'system' %}selected{% endif %}>Rendszer</option>
+    </select>
+  </div>
+  <div><button class="btn primary" type="submit">Szűrés</button></div>
+</form>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Időpont</th><th>Diák</th><th>Előző</th><th>Új</th><th>Ok</th><th>Forrás</th><th>Rögzítette</th></tr></thead>
+      <tbody>
+        {% for e in page %}
+        <tr>
+          <td class="small nowrap mono">{{ e.created_at|date:"Y. m. d. H:i" }}</td>
+          <td>{{ e.student.full_name }}</td>
+          <td class="small muted">{{ e.old_status.label|default:"—" }}</td>
+          <td><span class="status-dot" style="background: {{ e.new_status.color }}"></span>{{ e.new_status.label }}</td>
+          <td class="small">{{ e.reason|default:"—" }}</td>
+          <td class="small"><span class="badge">{{ e.get_source_display }}</span></td>
+          <td class="small muted">{{ e.created_by.display_name|default:"rendszer" }}</td>
+        </tr>
+        {% empty %}<tr><td colspan="7" class="empty">Nincs bejegyzés.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

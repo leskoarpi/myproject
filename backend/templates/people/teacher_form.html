@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{% if teacher %}{{ teacher.full_name }}{% else %}Új nevelőtanár{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% if teacher %}{{ teacher.full_name }}{% else %}Új nevelőtanár{% endif %}</h1>
+  {% if not teacher %}<p class="subtitle">A fiók ideiglenes jelszót kap, amelyet az első belépéskor kötelező megváltoztatni.</p>{% endif %}</div></div>
+<div class="card" style="max-width:600px">
+  <form method="post">{% csrf_token %}{% include "_form.html" %}
+    <div class="actions"><button class="btn primary" type="submit">Mentés</button>
+      <a class="btn" href="{% url 'people:teachers' %}">Mégse</a></div>
+  </form>
+</div>
+{% endblock %}

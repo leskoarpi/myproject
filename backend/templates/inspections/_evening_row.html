@@ -1,0 +1,22 @@
+<tr id="evening-row-{{ student.pk }}">
+  <td class="mono">{{ student.current_room.number|default:"—" }}</td>
+  <td>{{ student.full_name }}
+    {% if row_error %}<div class="small" style="color:var(--bad)">{{ row_error }}</div>{% endif %}
+  </td>
+  <td>
+    {% if can_edit %}
+      <form method="post" action="{% url 'inspections:evening_save_result' session_id=session.pk student_id=student.pk %}"
+            data-partial data-target="#evening-row-{{ student.pk }}">
+        {% csrf_token %}
+        <select name="status" data-autosubmit aria-label="{{ student.full_name }} eredménye">
+          <option value="">—</option>
+          {% for s in statuses %}<option value="{{ s.code }}" {% if result and result.status_id == s.pk %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
+        </select>
+        <noscript><button class="btn small" type="submit">Mentés</button></noscript>
+      </form>
+    {% else %}
+      {% if result %}<span class="status-dot" style="background: {{ result.status.color }}"></span>{{ result.status.label }}{% else %}<span class="muted">—</span>{% endif %}
+    {% endif %}
+  </td>
+  <td class="small muted">{% if result %}{{ result.recorded_at|date:"H:i" }} · {{ result.recorded_by.display_name|default:"" }}{% endif %}</td>
+</tr>

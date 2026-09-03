@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Hétvégi bennmaradás{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Hétvégi bennmaradás</h1><p class="subtitle">{{ weekend_start|date:"Y. m. d." }} — péntektől</p></div>
+  <div class="actions">
+    <a class="btn" href="?weekend={{ prev_weekend|date:'Y-m-d' }}">← Előző</a>
+    <a class="btn" href="?weekend={{ next_weekend|date:'Y-m-d' }}">Következő →</a>
+    <a class="btn primary" href="{% url 'weekend:roster' weekend=weekend_start|date:'Y-m-d' %}">Nyomtatható lista</a>
+  </div>
+</div>
+
+{% if can_check %}
+<div class="card">
+  <h2>Ellenőrzések</h2>
+  <div class="actions">
+    {% for value, label in check_types %}
+      <a class="btn" href="{% url 'weekend:check_session' weekend=weekend_start|date:'Y-m-d' check_type=value %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<form class="filters" method="get">
+  <input type="hidden" name="weekend" value="{{ weekend_start|date:'Y-m-d' }}">
+  <div><label for="status">Állapot</label>
+    <select id="status" name="status">
+      <option value="">Mind</option>
+      {% for value, label in statuses %}<option value="{{ value }}" {% if value == selected_status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></div>
+  <div><button class="btn primary" type="submit">Szűrés</button></div>
+</form>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Szoba</th><th>Név</th><th>Csoport</th><th>Péntek</th><th>Szombat</th><th>Állapot</th>{% if can_review %}<th>Elbírálás</th>{% endif %}</tr></thead>
+      <tbody>
+      {% for stay in stays %}
+        <tr>
+          <td class="mono">{{ stay.room_number|default:"—" }}</td>
+          <td>{{ stay.display_name }}{% if stay.is_guest %} <span class="badge info">vendég</span>{% endif %}</td>
+          <td class="small muted">{{ stay.group_name|default:"—" }}</td>
+          <td>{% if stay.friday_stay %}✓{% else %}—{% endif %}</td>
+          <td>{% if stay.saturday_stay %}✓{% else %}—{% endif %}</td>
+          <td><span class="badge {% if stay.status == 'approved' %}ok{% elif stay.status == 'rejected' %}bad{% elif stay.status == 'pending' %}warn{% endif %}">{{ stay.get_status_display }}</span></td>
+          {% if can_review %}
+          <td class="nowrap">
+            <form method="post" action="{% url 'weekend:review' stay_id=stay.pk %}" style="display:inline">
+              {% csrf_token %}<input type="hidden" name="decision" value="approve">
+              <button class="btn small ok" type="submit">Jóváhagy</button>
+            </form>
+            <form method="post" action="{% url 'weekend:review' stay_id=stay.pk %}" style="display:inline">
+              {% csrf_token %}<input type="hidden" name="decision" value="reject">
+              <button class="btn small" type="submit">Elutasít</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+      {% empty %}<tr><td colspan="7" class="empty">Erre a hétvégére nincs jelentkezés.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if can_manage %}
+<div class="card">
+  <h2>Vendég hozzáadása</h2>
+  <p class="small muted">A vendég nem foglal hétköznapi szobahelyet.</p>
+  <form method="post" action="{% url 'weekend:add_guest' %}">
+    {% csrf_token %}
+    <input type="hidden" name="weekend" value="{{ weekend_start|date:'Y-m-d' }}">
+    <div class="filters">
+      <div><label for="guest_name">Név</label><input type="text" id="guest_name" name="guest_name" required maxlength="200"></div>
+      <div><label for="guest_room">Szoba</label>
+        <select id="guest_room" name="room"><option value="">—</option>
+          {% for r in rooms %}<option value="{{ r.pk }}">{{ r.number }}</option>{% endfor %}
+        </select></div>
+      <div><label for="guest_phone">Telefon</label><input type="text" id="guest_phone" name="guest_phone" maxlength="32"></div>
+      <div><label for="guest_guardian_name">Gondviselő</label><input type="text" id="guest_guardian_name" name="guest_guardian_name" maxlength="200"></div>
+      <div><label for="guest_guardian_phone">Gondviselő telefon</label><input type="text" id="guest_guardian_phone" name="guest_guardian_phone" maxlength="32"></div>
+    </div>
+    <div class="checkline"><input type="checkbox" id="g_fri" name="friday_stay" value="1"><label for="g_fri">Péntek éjszaka</label></div>
+    <div class="checkline"><input type="checkbox" id="g_sat" name="saturday_stay" value="1"><label for="g_sat">Szombat éjszaka</label></div>
+    <button class="btn primary" type="submit">Hozzáadás</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

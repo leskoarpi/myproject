@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Import előnézet{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Import előnézet</h1><p class="subtitle">Semmi nem került még mentésre</p></div></div>
+
+<div class="grid cols-3" style="margin-bottom:14px">
+  <div class="stat ok"><div class="value">{{ preview.creates|length }}</div><div class="label">Új fiók</div></div>
+  <div class="stat warn"><div class="value">{{ preview.conflicts|length }}</div><div class="label">Létező fiók</div></div>
+  <div class="stat bad"><div class="value">{{ preview.error_rows|length }}</div><div class="label">Hibás sor</div></div>
+</div>
+
+{% if preview.error_rows %}
+<div class="card">
+  <h2>Hibás sorok</h2>
+  <div class="table-wrap">
+    <table><thead><tr><th>Sor</th><th>Hibák</th></tr></thead>
+      <tbody>{% for row in preview.error_rows %}
+        <tr><td class="num">{{ row.line_number }}</td><td class="small" style="color:var(--bad)">{{ row.errors|join:" " }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<form method="post" action="{% url 'people:teacher_import_apply' %}">
+  {% csrf_token %}
+  {% if preview.conflicts %}
+  <div class="card">
+    <h2>Létező fiókok — válaszd ki, mit frissítsünk</h2>
+    <div class="table-wrap">
+      <table><thead><tr><th>Frissít</th><th>Felhasználó</th><th>Név</th><th>Csoportok</th></tr></thead>
+        <tbody>{% for row in preview.conflicts %}
+          <tr><td><input type="checkbox" name="overwrite" value="{{ row.existing_user_id }}" id="tw-{{ row.existing_user_id }}"></td>
+              <td class="mono"><label for="tw-{{ row.existing_user_id }}">{{ row.data.username }}</label></td>
+              <td>{{ row.data.full_name }}</td>
+              <td class="small">{{ row.data.groups|join:", " }}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if preview.creates %}
+  <div class="card">
+    <h2>Új fiókok</h2>
+    <div class="table-wrap">
+      <table><thead><tr><th>Felhasználó</th><th>Név</th><th>E-mail</th><th>Csoportok</th></tr></thead>
+        <tbody>{% for row in preview.creates %}
+          <tr><td class="mono">{{ row.data.username }}</td><td>{{ row.data.full_name }}</td>
+              <td class="small">{{ row.data.email }}</td><td class="small">{{ row.data.groups|join:", " }}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="actions">
+    <button class="btn primary" type="submit" data-confirm="Alkalmazod az importot?">Import alkalmazása</button>
+    <a class="btn" href="{% url 'people:teacher_import' %}">Mégse</a>
+  </div>
+</form>
+{% endblock %}

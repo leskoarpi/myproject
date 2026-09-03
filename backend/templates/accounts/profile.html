@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Profil{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ profile_user.display_name }}</h1><p class="subtitle">{{ profile_user.get_role_display }}</p></div>
+  <a class="btn" href="{% url 'accounts:password_change' %}">Jelszóváltás</a>
+</div>
+
+<div class="grid cols-2">
+  <div class="card">
+    <h2>Fiók</h2>
+    <table>
+      <tr><th>Felhasználónév</th><td>{{ profile_user.username }}</td></tr>
+      <tr><th>E-mail</th><td>{{ profile_user.email }}</td></tr>
+      <tr><th>Szerepkör</th><td>{{ profile_user.get_role_display }}</td></tr>
+      <tr><th>Telefon</th><td>{{ profile_user.phone|default:"—" }}</td></tr>
+    </table>
+  </div>
+
+  {% if student %}
+  <div class="card">
+    <h2>Diák adatok</h2>
+    <table>
+      <tr><th>Név</th><td>{{ student.full_name }}</td></tr>
+      <tr><th>Szoba</th><td>{{ student.current_room|default:"nincs beosztva" }}</td></tr>
+      <tr><th>Csoport</th><td>{{ student.group|default:"—" }}</td></tr>
+      <tr><th>Osztály</th><td>{{ student.school_class|default:"—" }}</td></tr>
+      <tr><th>Iskola</th><td>{{ student.school_name|default:"—" }}</td></tr>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if teacher %}
+  <div class="card">
+    <h2>Csoportok</h2>
+    <p><strong>Elsődleges:</strong> {{ teacher.primary_group|default:"—" }}</p>
+    <p><strong>További:</strong> {% for g in teacher.groups.all %}<span class="badge info">{{ g.code }}</span> {% empty %}—{% endfor %}</p>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Jogosultságok</h2>
+    <p class="small muted">Ezek határozzák meg, mit látsz a menüben.</p>
+    <p>{% for c in capabilities %}<span class="badge">{{ c }}</span> {% endfor %}</p>
+  </div>
+</div>
+{% endblock %}

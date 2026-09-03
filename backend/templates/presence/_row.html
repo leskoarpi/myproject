@@ -1,0 +1,18 @@
+<tr id="presence-row-{{ presence.student_id }}">
+  <td><a href="{% url 'presence:student_detail' student_id=presence.student_id %}">{{ presence.student.full_name }}</a></td>
+  <td class="mono">{{ presence.student.current_room.number|default:"—" }}</td>
+  <td class="nowrap"><span class="status-dot" style="background: {{ presence.status.color }}"></span>{{ presence.status.label }}</td>
+  <td class="small muted nowrap">{{ presence.changed_at|date:"m. d. H:i" }}</td>
+  {% if can_edit %}
+  <td>
+    <form method="post" action="{% url 'presence:set_status' student_id=presence.student_id %}"
+          data-partial data-target="#presence-row-{{ presence.student_id }}">
+      {% csrf_token %}
+      <select name="status" data-autosubmit aria-label="Státusz módosítása">
+        {% for s in statuses %}<option value="{{ s.code }}" {% if s.pk == presence.status_id %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
+      </select>
+      <noscript><button class="btn small" type="submit">Mentés</button></noscript>
+    </form>
+  </td>
+  {% endif %}
+</tr>
