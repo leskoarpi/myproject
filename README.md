@@ -287,7 +287,7 @@ an unprivileged user. `.env` is gitignored; no secret has a usable default.
 
 ## Tests
 
-137 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
+142 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
 constraints):
 
 ```bash
@@ -297,7 +297,7 @@ docker compose exec web pytest
 - **Unit** — presence transitions and the self-service switch, weekend date
   arithmetic, room capacity, assignment overlap, state transitions, pass-rule
   transitions, monthly grid shape (month lengths, leap years, weekend columns,
-  floor sections, room grouping)
+  floor sections, room grouping and the united room cells)
 - **Integration** — student self-service over HTTP (both sides of the switch),
   evening inspection, the merged morning round, weekend approval and nightly
   checks, pass-rule changes, change-request approval, .xlsx generation read
@@ -323,14 +323,15 @@ column per day of the month:
 
 Deliberately spare: the tidiness sheet carries room numbers and marks and
 nothing else (no floor column — the section heading says it, no averages), and
-the presence sheet has no inside/other/checked totals. On the presence sheet
-the room number is printed once per room instead of on every resident, with a
-rule marking where the next room starts.
+the presence sheet has no inside/other/checked totals. On the presence sheet a
+room number is written once and **united down over its residents** — a
+`rowspan` on the printed page, a merged range in the spreadsheet — so there are
+no stray blank cells under it.
 
 Each renders as a print-optimised A4-landscape page — one table per floor, each
 floor starting a new page, weekend columns shaded, labels frozen while the days
 scroll — and downloads as a real `.xlsx` via openpyxl, **one worksheet per
-floor**, with a frozen header and repeated print titles. Both outputs are built
+floor**, with a frozen header, merged room cells and repeated print titles. Both outputs are built
 from the same `MonthlyGrid`, so the printed page and the spreadsheet can never
 disagree. Exports are audited.
 

@@ -8,7 +8,8 @@ out — a floor's teacher gets their floor's sheet:
   the cell. Room numbers and marks, nothing else.
 * **Esti jelenlét** - one row per student, one column per day, ``+`` when the
   student was in at the time of the check and ``-`` when they were not. The
-  room number is printed once per room rather than repeated on every resident.
+  room number is written once per room and united down over its residents
+  rather than repeated on every row.
 
 Both render as a printable A4-landscape page (one table per floor) and download
 as an .xlsx workbook (one worksheet per floor). The rows are assembled here,
@@ -91,6 +92,21 @@ def _floor_label(floor):
     return NO_ROOM_LABEL if floor is None else f"{floor}. emelet"
 
 
+def _label_cells(labels, spans):
+    """The label cells this row actually renders.
+
+    ``spans`` is parallel to ``labels``: a span of 0 means the cell was united
+    with the one above and is not rendered at all, which is what becomes a
+    ``rowspan`` in HTML and a merged range in Excel. ``column`` is the 0-based
+    label column, so a continuation row still lands in the right place.
+    """
+    return [
+        {"text": text, "rowspan": span, "column": index}
+        for index, (text, span) in enumerate(zip(labels, spans))
+        if span
+    ]
+
+
 def room_tidiness_grid(year, month):
     """Room tidiness marks for one month, one section per floor.
 
@@ -117,7 +133,13 @@ def room_tidiness_grid(year, month):
     sections = {}
     for room in Room.objects.active().order_by("floor", "number"):
         section = sections.setdefault(room.floor, GridSection(label=_floor_label(room.floor)))
-        section.rows.append({"labels": [room.number], "cells": by_room.get(room.pk, {})})
+        section.rows.append(
+            {
+                "labels": [room.number],
+                "label_cells": _label_cells([room.number], [1]),
+                "cells": by_room.get(room.pk, {}),
+            }
+        )
 
     return MonthlyGrid(
         title="Szobarend",
@@ -171,12 +193,18 @@ def evening_presence_grid(year, month):
         for room_number in sorted(grouped[floor]):
             residents = sorted(grouped[floor][room_number], key=lambda s: s.full_name)
             for index, student in enumerate(residents):
+                first = index == 0
                 section.rows.append(
                     {
-                        # Print the room once, on its first resident.
-                        "labels": [room_number if index == 0 else "", student.full_name],
+                        # The room number is written once and united down over
+                        # its residents, so the blanks below it disappear.
+                        "labels": [room_number if first else "", student.full_name],
+                        "label_cells": _label_cells(
+                            [room_number, student.full_name],
+                            [len(residents) if first else 0, 1],
+                        ),
                         "cells": by_student.get(student.pk, {}),
-                        "starts_room": index == 0,
+                        "starts_room": first,
                     }
                 )
         sections.append(section)

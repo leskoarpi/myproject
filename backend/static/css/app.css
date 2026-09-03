@@ -338,8 +338,9 @@ table.sheet .sticky-label {
 table.sheet thead .sticky-label { background: var(--surface-2); z-index: 3; }
 table.sheet tbody tr:hover .sticky-label { background: var(--surface-2); }
 
-/* The room number is printed once per room; this rule marks where the next
-   room starts, in place of the number the sheet no longer repeats. */
+/* The room number cell is united down over its residents (rowspan), so it is
+   centred in the block it covers; the rule marks where the next room starts. */
+table.sheet td.united { vertical-align: middle; font-weight: 600; }
 table.sheet tr.room-start > td { border-top: 1px solid var(--muted); }
 
 @media print {
@@ -356,4 +357,5 @@ table.sheet tr.room-start > td { border-top: 1px solid var(--muted); }
     -webkit-print-color-adjust: exact;
   }
   table.sheet tr.room-start > td { border-top: 1px solid #666; }
+  table.sheet td.united { vertical-align: middle; }
 }

@@ -173,7 +173,7 @@ def test_evening_is_split_by_floor(setup):
     assert [r["labels"][1] for r in _section(grid, "2. emelet").rows] == ["Cili Diák"]
 
 
-def test_room_number_is_printed_once_per_room(setup):
+def test_room_number_is_written_once_per_room(setup):
     for student in (setup["students"]["anna"], setup["students"]["bela"]):
         _evening(setup, dt.date(YEAR, MONTH, 1), student, "inside")
 
@@ -183,6 +183,39 @@ def test_room_number_is_printed_once_per_room(setup):
         ["", "Béla Diák"],  # same room, number not repeated
     ]
     assert [r["starts_room"] for r in rows] == [True, False]
+
+
+def test_the_room_cell_is_united_over_its_residents(setup):
+    """The blank cells under a room number are united into it, not left empty."""
+    for student in (setup["students"]["anna"], setup["students"]["bela"]):
+        _evening(setup, dt.date(YEAR, MONTH, 1), student, "inside")
+
+    rows = _section(evening_presence_grid(YEAR, MONTH), "1. emelet").rows
+
+    first, second = rows[0]["label_cells"], rows[1]["label_cells"]
+    # Row 1 renders the room spanning both residents, plus its own name cell.
+    assert [(c["column"], c["text"], c["rowspan"]) for c in first] == [
+        (0, "101", 2),
+        (1, "Anna Diák", 1),
+    ]
+    # Row 2 renders no room cell at all - it is covered by the one above.
+    assert [(c["column"], c["text"], c["rowspan"]) for c in second] == [
+        (1, "Béla Diák", 1)
+    ]
+
+
+def test_a_single_resident_room_is_not_united(setup):
+    _evening(setup, dt.date(YEAR, MONTH, 1), setup["students"]["cili"], "inside")
+
+    row = _section(evening_presence_grid(YEAR, MONTH), "2. emelet").rows[0]
+    assert [c["rowspan"] for c in row["label_cells"]] == [1, 1]
+
+
+def test_tidiness_rows_are_never_united(setup):
+    row = _section(room_tidiness_grid(YEAR, MONTH), "1. emelet").rows[0]
+    assert [(c["column"], c["text"], c["rowspan"]) for c in row["label_cells"]] == [
+        (0, "101", 1)
+    ]
 
 
 def test_a_student_without_a_room_lands_in_a_trailing_section(setup):
@@ -226,6 +259,36 @@ def test_xlsx_is_a_real_workbook_with_one_sheet_per_floor(setup):
     assert sheet.cell(row=4, column=3).value == 4  # day 2
     assert sheet.freeze_panes == "B4"
     assert sheet.page_setup.orientation == "landscape"
+
+
+def test_printable_sheet_uses_a_rowspan_for_the_room(client, setup):
+    for student in (setup["students"]["anna"], setup["students"]["bela"]):
+        _evening(setup, dt.date(YEAR, MONTH, 1), student, "inside")
+    client.force_login(setup["admin"])
+
+    body = client.get(
+        reverse("reports:monthly", kwargs={"name": "evening_presence"}),
+        {"year": YEAR, "month": MONTH},
+    ).content.decode()
+
+    assert 'rowspan="2"' in body
+    assert body.count(">101<") == 1  # written once, not once per resident
+
+
+def test_xlsx_merges_the_room_cell_over_its_residents(setup):
+    for student in (setup["students"]["anna"], setup["students"]["bela"]):
+        _evening(setup, dt.date(YEAR, MONTH, 1), student, "inside")
+
+    from openpyxl import load_workbook
+
+    sheet = load_workbook(io.BytesIO(grid_to_xlsx(evening_presence_grid(YEAR, MONTH))))[
+        "1. emelet"
+    ]
+    # Rows 4 and 5 are the two residents; the room cell spans both.
+    assert "A4:A5" in {str(r) for r in sheet.merged_cells.ranges}
+    assert sheet.cell(row=4, column=1).value == "101"
+    assert sheet.cell(row=4, column=2).value == "Anna Diák"
+    assert sheet.cell(row=5, column=2).value == "Béla Diák"
 
 
 def test_xlsx_evening_sheet_carries_plus_minus(setup):

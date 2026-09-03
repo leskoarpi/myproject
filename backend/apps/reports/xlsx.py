@@ -6,6 +6,8 @@ the weekend columns shaded and the day columns narrow enough to fit a month on
 one screen.
 
 Each floor gets its own worksheet, matching how the printed sheets are split.
+A room number that covers several residents is written once and merged down
+over them, the same way the printed sheet uses a rowspan.
 """
 
 HEADER_FILL = "1F4E79"
@@ -55,6 +57,7 @@ def grid_to_xlsx(grid):
     header_fill = PatternFill("solid", fgColor=HEADER_FILL)
     weekend_fill = PatternFill("solid", fgColor=WEEKEND_FILL)
     centered = Alignment(horizontal="center", vertical="center")
+    middle_left = Alignment(horizontal="left", vertical="center")
 
     workbook = Workbook()
     workbook.remove(workbook.active)  # replaced by the per-floor sheets below
@@ -86,15 +89,27 @@ def grid_to_xlsx(grid):
             cell.alignment = centered
             cell.border = border
 
+        merges = []
         for offset, row in enumerate(section.rows, start=HEADER_ROW + 1):
-            # A thin rule above the first resident of each room stands in for
-            # the repeated room number the sheet no longer prints.
+            # A thin rule above the first resident of each room marks where the
+            # next room starts.
             row_border = room_rule if row.get("starts_room") and offset > HEADER_ROW + 1 else border
-            column = 1
-            for label in row["labels"]:
-                cell = sheet.cell(row=offset, column=column, value=label)
+
+            for spec in row["label_cells"]:
+                column = spec["column"] + 1
+                span = spec["rowspan"]
+                cell = sheet.cell(row=offset, column=column, value=spec["text"])
                 cell.border = row_border
-                column += 1
+                if span > 1:
+                    # Give every covered cell a border before merging, or the
+                    # united block loses its right-hand edge further down.
+                    for covered in range(offset, offset + span):
+                        sheet.cell(row=covered, column=column).border = border
+                    sheet.cell(row=offset, column=column).border = row_border
+                    cell.alignment = middle_left
+                    merges.append((offset, column, offset + span - 1))
+
+            column = label_count + 1
             for day in grid.days:
                 cell = sheet.cell(row=offset, column=column, value=row["cells"].get(day, ""))
                 cell.alignment = centered
@@ -102,6 +117,12 @@ def grid_to_xlsx(grid):
                 if day in weekend:
                     cell.fill = weekend_fill
                 column += 1
+
+        # Merge after writing: openpyxl clears the covered cells on merge.
+        for start_row, column, end_row in merges:
+            sheet.merge_cells(
+                start_row=start_row, start_column=column, end_row=end_row, end_column=column
+            )
 
         if grid.legend:
             legend_row = HEADER_ROW + len(section.rows) + 2
