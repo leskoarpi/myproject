@@ -133,6 +133,20 @@ rename cannot rewrite that morning's sheet.
 `MorningSnapshot`, `MorningSnapshotItem`, `MorningMonth`, the 04:00 cutoff
 calculation and the nightly snapshot job were all removed.
 
+**A room added to a floor after that day's session already exists** used to
+never get a `RoomCheck` row — the rows were bulk-created once, only when the
+session was first opened, and never refreshed afterward. A room created
+later that day (a new floor added mid-use was the case that surfaced it —
+floor `0` in particular, being falsy in Python, though the actual bug was the
+one-time snapshot, not a truthy check) had no row to rate against, so it
+silently never appeared on the entry sheet *or* in the monthly worksheet —
+while the evening check showed it correctly, since that side never
+snapshots rooms at all; it looks up each student's current room fresh on
+every request. `sync_room_check_rows()` (`apps/inspections/services/roomcheck.py`)
+makes the room list idempotently back-fill on every visit to the floor page
+and the index page, not just at session creation. `backfill_room_check_rows`
+is a one-off management command for sessions created before this fix.
+
 ### Pass rules replace the pass system (Sept 2026 rework)
 
 The dormitory runs its own paper pass system, so this application no longer
@@ -204,6 +218,22 @@ students:
 
 Both checks run at the service layer, not just in the view, and every change
 is audited with the before/after capability sets.
+
+**Permanent deletion is a further, admin-only step on top of all that**
+(`DELETE_USERS`, `apps/accounts/services.py::delete_user_permanently`) —
+archiving and disabling stay the reversible options for management; hard
+deletion is not. It refuses four ways before it touches anything: never a
+student account (`StudentProfile.user` is `on_delete=PROTECT` precisely so
+this can't happen by accident — spec §7 — the operator is pointed at the
+existing archive flow instead), never yourself, never the last admin account
+standing, and only after typing the account's exact username as confirmation.
+`DELETE_USERS` is excluded from the privilege screen's grantable list
+alongside `DELETE_ALL_DATA` — it only ever comes from the Admin role itself.
+Every other FK from historical data to `User` (presence events, room checks,
+audit entries, weekend reviews, ...) is `SET_NULL`, so deleting an account
+clears "who did this" attribution on that history without touching the
+history itself; a `Teacher` profile cascades away with its account, since it
+carries no history of its own.
 
 ### Concurrency on inspections (spec §18)
 
@@ -347,7 +377,7 @@ an unprivileged user. `.env` is gitignored; no secret has a usable default.
 
 ## Tests
 
-189 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
+218 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
 constraints):
 
 ```bash
