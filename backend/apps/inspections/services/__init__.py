@@ -16,4 +16,5 @@ from .roomcheck import (  # noqa: F401
     room_check_queryset_for_user,
     save_room_check,
     save_student_morning_status,
+    sync_room_check_rows,
 )

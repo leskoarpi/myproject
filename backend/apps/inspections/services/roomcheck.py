@@ -31,6 +31,26 @@ def _require_module():
         raise PermissionDenied("A reggeli és szobaellenőrzés modul ki van kapcsolva.")
 
 
+def sync_room_check_rows(session):
+    """Make sure every currently active room on the session's floor has a row.
+
+    A room added to the floor *after* the session was first opened used to
+    never get a ``RoomCheck`` row - the rows were bulk-created once, only at
+    creation time - so there was no row to rate it against and it silently
+    never appeared on the sheet or in the monthly worksheet. ``ignore_conflicts``
+    makes this idempotent: existing rows (and any rating already on them) are
+    left untouched, so it is safe to call on every visit to the floor, not
+    just when the session is first created.
+    """
+    RoomCheck.objects.bulk_create(
+        [
+            RoomCheck(session=session, room=room)
+            for room in Room.objects.active().on_floor(session.floor)
+        ],
+        ignore_conflicts=True,
+    )
+
+
 @transaction.atomic
 def open_room_check_session(*, date, floor, actor):
     _require_module()
@@ -42,15 +62,8 @@ def open_room_check_session(*, date, floor, actor):
         floor=floor,
         defaults={"opened_by": actor, "opened_at": timezone.now()},
     )
+    sync_room_check_rows(session)
     if created:
-        # Pre-create an empty check row per room so the entry sheet is stable.
-        RoomCheck.objects.bulk_create(
-            [
-                RoomCheck(session=session, room=room)
-                for room in Room.objects.active().on_floor(floor)
-            ],
-            ignore_conflicts=True,
-        )
         record_audit(user=actor, action=AuditAction.CREATE, target=session)
     return session
 

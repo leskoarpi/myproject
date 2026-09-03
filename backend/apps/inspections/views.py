@@ -29,6 +29,7 @@ from .services import (
     save_evening_result,
     save_room_check,
     save_student_morning_status,
+    sync_room_check_rows,
 )
 from .services.evening import evening_overview, evening_session_progress
 
@@ -216,9 +217,14 @@ def evening_release_lock(request, session_id):
 def roomcheck_index(request):
     date = _parse_date(request.GET.get("date"))
     sessions = {s.floor: s for s in RoomCheckSession.objects.filter(date=date)}
+    can_edit = request.user.has_capability(Capability.EDIT_ROOM_CHECKS)
     rows = []
     for floor in floors():
         session = sessions.get(floor)
+        if session is not None and can_edit:
+            # Same back-fill as the floor page: a room added after the
+            # session was opened otherwise never counts here either.
+            sync_room_check_rows(session)
         rows.append(
             {
                 "floor": floor,
@@ -233,7 +239,7 @@ def roomcheck_index(request):
             "date": date,
             "rows": rows,
             "recent": RoomCheckSession.objects.all()[:20],
-            "can_edit": request.user.has_capability(Capability.EDIT_ROOM_CHECKS),
+            "can_edit": can_edit,
         },
     )
 
@@ -249,6 +255,11 @@ def roomcheck_floor(request, date, floor):
             messages.info(request, "Erre a napra még nem indult reggeli ellenőrzés.")
             return redirect("inspections:roomcheck_index")
         session = open_room_check_session(date=day, floor=floor, actor=request.user)
+    elif request.user.has_capability(Capability.EDIT_ROOM_CHECKS):
+        # A room can be added to the floor after the session already exists;
+        # back-fill it here too, not just at session creation, or it never
+        # gets a row to rate against (see sync_room_check_rows).
+        sync_room_check_rows(session)
 
     checks = session.checks.select_related("room", "checked_by").prefetch_related(
         "student_results__student", "student_results__status"
