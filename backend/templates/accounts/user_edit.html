@@ -74,4 +74,12 @@
   <h2>Jelenleg érvényes jogosultságok</h2>
   <p>{% for code, label in effective_capabilities %}<span class="badge">{{ label }}</span> {% empty %}<span class="muted">Nincs jogosultsága.</span>{% endfor %}</p>
 </div>
+
+{% if can_delete %}
+<div class="card" style="border-color: var(--bad)">
+  <h2 style="color: var(--bad)">Veszélyes zóna</h2>
+  <p class="small muted">A fiók végleges törlése nem vonható vissza. Archiválás helyett.</p>
+  <a class="btn danger" href="{% url 'accounts:user_delete' user_id=target.pk %}">Fiók végleges törlése</a>
+</div>
+{% endif %}
 {% endblock %}

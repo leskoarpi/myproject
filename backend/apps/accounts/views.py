@@ -19,8 +19,13 @@ from apps.audit.services import AuditAction, record_audit
 from .capabilities import Capability, Role, capabilities_for_role, capability_label, labelled_capabilities
 from .models import LoginAttempt
 from .permissions import require_capabilities
-from .selectors import assignable_roles_for, grantable_capabilities_for, users_manageable_by
-from .services import set_user_capabilities, set_user_role
+from .selectors import (
+    assignable_roles_for,
+    can_delete_user,
+    grantable_capabilities_for,
+    users_manageable_by,
+)
+from .services import delete_user_permanently, set_user_capabilities, set_user_role
 
 User = get_user_model()
 
@@ -225,6 +230,7 @@ def user_edit(request, user_id):
             "role_choices": role_choices,
             "capability_rows": capability_rows,
             "effective_capabilities": labelled_capabilities(target),
+            "can_delete": can_delete_user(request.user, target),
         },
     )
 
@@ -250,3 +256,31 @@ def user_toggle_active(request, user_id):
         f"{target.display_name} fiókja {'aktiválva' if target.is_active else 'letiltva'}.",
     )
     return redirect("accounts:user_list")
+
+
+@login_required
+@require_capabilities(Capability.DELETE_USERS)
+def user_delete(request, user_id):
+    """Permanent deletion. A dedicated confirmation page, not just a button
+    on the list - this has no undo, unlike archiving or disabling."""
+    target = get_object_or_404(users_manageable_by(request.user), pk=user_id)
+
+    if not can_delete_user(request.user, target):
+        raise PermissionDenied("Ezt a fiókot nem törölheted.")
+
+    if request.method == "POST":
+        try:
+            snapshot = delete_user_permanently(
+                target=target,
+                actor=request.user,
+                confirmation_username=request.POST.get("confirmation_username", ""),
+            )
+            messages.success(
+                request, f"{snapshot['display_name']} fiókja véglegesen törölve."
+            )
+            return redirect("accounts:user_list")
+        except (PermissionDenied, ValidationError) as exc:
+            message = " ".join(exc.messages) if hasattr(exc, "messages") else str(exc)
+            messages.error(request, message)
+
+    return render(request, "accounts/user_delete_confirm.html", {"target": target})

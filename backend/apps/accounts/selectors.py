@@ -7,6 +7,9 @@ touch, per spec section 3.2 ("management should not automatically receive
 system-owner/destructive permissions"). Management can manage everyone below
 that line - other management accounts included - but never an admin account,
 never promotes anyone to Admin, and can never hand out ``DELETE_ALL_DATA``.
+
+Permanent deletion is a further, admin-only step on top of all that: see
+``can_delete_user`` and ``apps.accounts.services.delete_user_permanently``.
 """
 
 from django.contrib.auth import get_user_model
@@ -42,6 +45,34 @@ def users_manageable_by(actor):
 
 def can_manage_user(actor, target):
     return users_manageable_by(actor).filter(pk=target.pk).exists()
+
+
+def is_student_account(user):
+    """Students are never permanently deletable - archive instead.
+
+    ``StudentProfile.user`` is ``on_delete=PROTECT`` precisely so this can't
+    happen by accident (spec section 7: student records must not be
+    physically deleted during normal operation); this just gives a clear
+    message up front instead of an unhandled ``ProtectedError``.
+    """
+    return hasattr(user, "student_profile")
+
+
+def can_delete_user(actor, target):
+    """Permanent deletion, unlike privilege editing, is admin-only and never
+    self-service - archiving/disabling remain the reversible options for
+    everyone else. See :func:`apps.accounts.services.delete_user_permanently`
+    for the transaction-time checks (last-admin guard) this does not repeat.
+    """
+    if not actor or not actor.is_authenticated:
+        return False
+    if not actor.has_capability(Capability.DELETE_USERS):
+        return False
+    if target.pk == actor.pk:
+        return False
+    if is_student_account(target):
+        return False
+    return can_manage_user(actor, target)
 
 
 def assignable_roles_for(actor):

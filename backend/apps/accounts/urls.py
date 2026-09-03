@@ -28,4 +28,5 @@ urlpatterns = [
         views.user_toggle_active,
         name="user_toggle_active",
     ),
+    path("users/<int:user_id>/delete/", views.user_delete, name="user_delete"),
 ]

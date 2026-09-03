@@ -8,13 +8,23 @@ see :func:`apps.accounts.capabilities.user_capabilities`). Both go through
 and both are audited (spec sections 47, 55, 58).
 """
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Q
 
 from apps.audit.services import AuditAction, record_audit
 
-from .capabilities import Capability
-from .selectors import assignable_roles_for, can_manage_user, grantable_capabilities_for
+from .capabilities import Capability, Role
+from .selectors import (
+    assignable_roles_for,
+    can_delete_user,
+    can_manage_user,
+    grantable_capabilities_for,
+    is_student_account,
+)
+
+User = get_user_model()
 
 
 def _snapshot(user):
@@ -97,3 +107,69 @@ def set_user_capabilities(*, target, actor, extra, revoked):
         note="capability overrides changed",
     )
     return target
+
+
+@transaction.atomic
+def delete_user_permanently(*, target, actor, confirmation_username):
+    """Hard-delete an account. Irreversible - unlike archiving a student or
+    disabling an account, there is no undo. Admin-only, never self-service,
+    never a student (see :func:`apps.accounts.selectors.is_student_account`),
+    and never the last admin standing, or nobody could use this screen to fix
+    that mistake afterward.
+
+    Every foreign key from historical records to ``User`` is ``SET_NULL``
+    (see the model comments this decision is drawn from), so presence
+    events, room checks, audit entries and the rest all survive with their
+    "who did this" attribution cleared, not deleted. A ``Teacher`` profile
+    cascades away with its account, since it carries no history of its own.
+    """
+    # Checked before the general scope check: a student account is never
+    # deletable by anyone, and that specific reason is more useful to the
+    # operator than a generic "you may not manage this account" - without
+    # this ordering, can_delete_user() already filters students out first
+    # and the friendlier message never surfaces.
+    if is_student_account(target):
+        raise ValidationError(
+            "Diákfiók nem törölhető véglegesen. Archiváld a diákot az adatlapján."
+        )
+
+    if not can_delete_user(actor, target):
+        raise PermissionDenied("Ezt a fiókot nem törölheted.")
+
+    if confirmation_username != target.username:
+        raise ValidationError("A megerősítéshez pontosan a felhasználónevet kell beírni.")
+
+    target = User.objects.select_for_update().get(pk=target.pk)
+    is_last_admin = target.is_superuser or target.role == Role.ADMIN
+    if is_last_admin:
+        other_admin_exists = (
+            User.objects.filter(is_active=True)
+            .filter(Q(is_superuser=True) | Q(role=Role.ADMIN))
+            .exclude(pk=target.pk)
+            .exists()
+        )
+        if not other_admin_exists:
+            raise ValidationError(
+                "Ez az utolsó adminisztrátori fiók - nem törölhető, mert senki "
+                "sem tudná ezt a döntést visszavonni."
+            )
+
+    snapshot = {
+        "username": target.username,
+        "email": target.email,
+        "role": target.role,
+        "display_name": target.display_name,
+    }
+    target_id = target.pk
+    target.delete()
+
+    record_audit(
+        user=actor,
+        action=AuditAction.DELETE,
+        target_type="accounts.User",
+        target_id=str(target_id),
+        target_repr=snapshot["display_name"],
+        old_value=snapshot,
+        note="account permanently deleted",
+    )
+    return snapshot

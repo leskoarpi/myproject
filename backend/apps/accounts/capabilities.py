@@ -85,6 +85,7 @@ class Capability:
     VIEW_REPORTS = "reports.view"
     VIEW_AUDIT_LOG = "audit.view"
     MANAGE_USERS = "system.manage_users"
+    DELETE_USERS = "system.delete_users"
     MANAGE_SETTINGS = "system.manage_settings"
     MANAGE_MODULES = "system.manage_modules"
     MANAGE_MAINTENANCE = "system.maintenance"
@@ -177,7 +178,9 @@ ROLE_CAPABILITIES = {
 }
 
 # Capabilities an operator may hand out individually on top of a role.
-GRANTABLE_CAPABILITIES = sorted(ALL_CAPABILITIES - {Capability.DELETE_ALL_DATA})
+GRANTABLE_CAPABILITIES = sorted(
+    ALL_CAPABILITIES - {Capability.DELETE_ALL_DATA, Capability.DELETE_USERS}
+)
 
 
 def capabilities_for_role(role):
@@ -247,6 +250,7 @@ CAPABILITY_LABELS = {
     Capability.MANAGE_MODULES: "Modulok kezelése",
     Capability.MANAGE_MAINTENANCE: "Karbantartás",
     Capability.DELETE_ALL_DATA: "Teljes adattörlés",
+    Capability.DELETE_USERS: "Felhasználók végleges törlése",
 }
 
 
