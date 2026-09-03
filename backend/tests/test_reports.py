@@ -364,10 +364,58 @@ def test_unknown_sheet_is_404(client, setup):
     )
 
 
-def test_a_teacher_cannot_reach_the_reports(client, setup):
+def test_a_teacher_can_reach_the_reports(client, setup):
     teacher = f.make_teacher()
     client.force_login(teacher.user)
-    assert client.get(reverse("reports:index")).status_code == 403
+    assert client.get(reverse("reports:index")).status_code == 200
+
+
+def test_a_teacher_cannot_export(client, setup):
+    """Viewing the report tab does not also grant CSV/JSON/xlsx export."""
+    teacher = f.make_teacher()
+    client.force_login(teacher.user)
+
+    body = client.get(reverse("reports:index")).content.decode()
+    assert "Excel (.xlsx)" not in body
+    assert client.get(reverse("reports:export", kwargs={"name": "occupancy", "fmt": "csv"})).status_code == 403
+
+
+def test_teacher_weekend_report_is_scoped_to_their_own_groups(client):
+    """The ad-hoc weekend report used to bypass weekend_stay_queryset_for_user
+    entirely, so any VIEW_REPORTS holder saw every student's weekend stay
+    regardless of group. Pinned here so granting teachers report access can't
+    silently reopen that leak (spec section 58)."""
+    from apps.weekend.models import friday_of
+    from apps.weekend.services import submit_weekend_stay
+
+    f.seed_status_types()
+    f.seed_modules()
+    f.make_school_year()
+    own_group = f.make_group()
+    other_group = f.make_group()
+    teacher = f.make_teacher(group=own_group)
+    own_student = f.make_student(group=own_group, name="Sajàt Diák")
+    other_student = f.make_student(group=other_group, name="Másik Diák")
+
+    weekend_start = friday_of(dt.date.today())
+    submit_weekend_stay(
+        student=own_student, actor=own_student.user, weekend_start=weekend_start, friday_stay=True
+    )
+    submit_weekend_stay(
+        student=other_student,
+        actor=other_student.user,
+        weekend_start=weekend_start,
+        friday_stay=True,
+    )
+
+    client.force_login(teacher.user)
+    body = client.get(
+        reverse("reports:detail", kwargs={"name": "weekend"}),
+        {"weekend": weekend_start.isoformat()},
+    ).content.decode()
+
+    assert "Sajàt Diák" in body
+    assert "Másik Diák" not in body
 
 
 def test_build_grid_rejects_unknown_names(setup):

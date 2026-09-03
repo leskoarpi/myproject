@@ -324,7 +324,7 @@ an unprivileged user. `.env` is gitignored; no secret has a usable default.
 
 ## Tests
 
-159 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
+161 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
 constraints):
 
 ```bash
@@ -353,6 +353,14 @@ docker compose exec web pytest
 ---
 
 ## Reports
+
+Viewing reports (`VIEW_REPORTS`) is granted to teachers, not just management —
+teachers are the ones actually reading the monthly worksheets floor by floor.
+Exporting (`EXPORT_DATA` — CSV, JSON, `.xlsx`) stays management-only, and each
+ad-hoc report is scoped the same way the underlying module already is: the
+weekend report, for instance, uses `weekend_stay_queryset_for_user`, so a
+teacher without broader weekend access sees only their own groups' stays here
+too, not the whole dormitory's.
 
 The primary reports are two **monthly worksheets**, shaped like the paper
 sheets the dormitory already keeps. Both are **split by floor** — a floor's

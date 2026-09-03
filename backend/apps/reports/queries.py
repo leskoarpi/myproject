@@ -14,7 +14,6 @@ from apps.leave_permissions.models import PassRuleHistory, StudentPassRule
 from apps.presence.models import PresenceEvent, StudentPresence
 from apps.rooms.models import Room
 from apps.students.selectors import presence_queryset_for_user, student_queryset_for_user
-from apps.weekend.models import WeekendStay
 
 
 def current_presence_report(user):
@@ -114,8 +113,13 @@ def room_rating_averages(*, start=None, end=None):
     )
 
 
-def weekend_stay_report(weekend_start):
-    stays = WeekendStay.objects.for_weekend(weekend_start).select_related("student", "room")
+def weekend_stay_report(user, weekend_start):
+    """Scoped like the weekend module itself: a teacher without broader
+    weekend access only sees their own groups' stays here too, not every
+    student's (spec section 58 - capability alone is never enough)."""
+    from apps.weekend.services import weekend_stay_queryset_for_user
+
+    stays = weekend_stay_queryset_for_user(user, weekend_start=weekend_start)
     return [
         {
             "room": s.room_number,

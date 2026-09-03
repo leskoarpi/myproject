@@ -136,6 +136,7 @@ _TEACHER = frozenset(
         Capability.VIEW_PASS_RULES,
         Capability.MANAGE_PASS_RULES,
         Capability.VIEW_TEACHERS,
+        Capability.VIEW_REPORTS,
     }
 )
 
@@ -158,7 +159,6 @@ _MANAGEMENT = frozenset(
         Capability.MANAGE_DATA,
         Capability.IMPORT_DATA,
         Capability.EXPORT_DATA,
-        Capability.VIEW_REPORTS,
         Capability.VIEW_AUDIT_LOG,
     }
 )

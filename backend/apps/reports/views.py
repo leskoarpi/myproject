@@ -177,7 +177,7 @@ def _rows_for(name, request):
         return queries.room_rating_averages(start=start, end=end)
     if name == "weekend":
         weekend = _parse(request.GET.get("weekend"), friday_of(timezone.localdate()))
-        return queries.weekend_stay_report(friday_of(weekend))
+        return queries.weekend_stay_report(user, friday_of(weekend))
     if name == "passes":
         return queries.pass_rule_report(user)
     if name == "pass_history":
