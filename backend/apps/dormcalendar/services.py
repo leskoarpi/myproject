@@ -68,7 +68,7 @@ def get_or_create_day(day, school_year=None):
         return existing
     school_year = school_year or SchoolYear.current()
     if school_year is None:
-        raise ValueError("No active school year is configured.")
+        raise ValueError("Nincs beállítva aktív tanév.")
     obj, _ = CalendarDay.objects.get_or_create(
         date=day,
         defaults={
@@ -87,7 +87,7 @@ def today_day():
 @transaction.atomic
 def update_calendar_day(*, day, actor, status=None, evening_check_required=None, note=None):
     if not actor.has_capability(Capability.MANAGE_CALENDAR):
-        raise PermissionDenied("Missing capability to manage the calendar.")
+        raise PermissionDenied("Nincs jogosultságod a naptár kezeléséhez.")
     before = {
         "status": day.status,
         "evening_check_required": day.evening_check_required,

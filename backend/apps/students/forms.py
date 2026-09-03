@@ -62,9 +62,10 @@ class StudentForm(forms.ModelForm):
 class StudentCreateForm(StudentForm):
     """Creates the login identity and the profile together."""
 
-    username = forms.CharField(max_length=150)
-    email = forms.EmailField()
+    username = forms.CharField(label="Felhasználónév", max_length=150)
+    email = forms.EmailField(label="E-mail cím")
     temporary_password = forms.CharField(
+        label="Ideiglenes jelszó",
         min_length=10,
         widget=forms.PasswordInput,
         help_text="A diák az első belépéskor köteles lesz megváltoztatni.",

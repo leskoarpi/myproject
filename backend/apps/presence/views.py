@@ -181,7 +181,7 @@ def self_leave(request):
 def _own_profile(request):
     profile = getattr(request.user, "student_profile", None)
     if profile is None:
-        raise PermissionDenied("This account has no student profile.")
+        raise PermissionDenied("Ehhez a fiókhoz nem tartozik diák adatlap.")
     return profile
 
 

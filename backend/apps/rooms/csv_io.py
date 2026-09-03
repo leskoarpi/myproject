@@ -106,19 +106,19 @@ def _parse_bool(value, default=True):
         return True
     if normalized in FALSY:
         return False
-    raise ValueError(f"'{value}' is not a valid true/false value")
+    raise ValueError(f"a(z) „{value}” nem értelmezhető igen/nem értékként")
 
 
 def _decode(upload):
     if upload.size > MAX_UPLOAD_BYTES:
-        raise ValidationError("The uploaded file is too large (limit: 2 MB).")
+        raise ValidationError("A feltöltött fájl túl nagy (legfeljebb 2 MB).")
     raw = upload.read()
     for encoding in ("utf-8-sig", "utf-8", "cp1250", "latin-2"):
         try:
             return raw.decode(encoding)
         except UnicodeDecodeError:
             continue
-    raise ValidationError("The file could not be decoded as UTF-8 or CP1250 text.")
+    raise ValidationError("A fájl nem olvasható UTF-8 vagy CP1250 szövegként.")
 
 
 def build_preview(upload):
@@ -131,11 +131,11 @@ def build_preview(upload):
     reader = csv.DictReader(io.StringIO(text), dialect=dialect)
 
     if not reader.fieldnames:
-        raise ValidationError("The CSV file is empty.")
+        raise ValidationError("A CSV fájl üres.")
     normalized_headers = {(h or "").strip().lower() for h in reader.fieldnames}
     if "number" not in normalized_headers:
         raise ValidationError(
-            "Missing required column 'number'. Expected columns: " + ", ".join(COLUMNS)
+            "Hiányzik a kötelező „number” oszlop. Várt oszlopok: " + ", ".join(COLUMNS)
         )
 
     existing = {room.number: room for room in Room.objects.all()}
@@ -144,7 +144,7 @@ def build_preview(upload):
 
     for index, raw_row in enumerate(reader, start=2):
         if index - 1 > MAX_ROWS:
-            raise ValidationError(f"The file has more than {MAX_ROWS} rows.")
+            raise ValidationError(f"A fájl több mint {MAX_ROWS} sort tartalmaz.")
         row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw_row.items() if k}
         if not any(row.values()):
             continue
@@ -153,11 +153,11 @@ def build_preview(upload):
         number = row.get("number", "")
 
         if not number:
-            result.errors.append("'number' is required.")
+            result.errors.append("A „number” oszlop kitöltése kötelező.")
         elif len(number) > 16:
-            result.errors.append("'number' is longer than 16 characters.")
+            result.errors.append("A „number” hosszabb 16 karakternél.")
         elif number in seen_numbers:
-            result.errors.append(f"Duplicate of line {seen_numbers[number]} in this file.")
+            result.errors.append(f"Ismétlődés: a(z) {seen_numbers[number]}. sorral azonos.")
         else:
             seen_numbers[number] = index
 
@@ -167,31 +167,31 @@ def build_preview(upload):
             try:
                 floor = int(floor_raw)
             except ValueError:
-                result.errors.append(f"'floor' must be a whole number (got '{floor_raw}').")
+                result.errors.append(f"A „floor” csak egész szám lehet (kapott érték: „{floor_raw}”).")
         elif number:
             floor = infer_floor(number)
             if floor is None:
-                result.errors.append("'floor' is missing and cannot be derived from the number.")
+                result.errors.append("A „floor” hiányzik, és a szobaszámból sem vezethető le.")
         if floor is not None and floor < 0:
-            result.errors.append("'floor' cannot be negative.")
+            result.errors.append("A „floor” nem lehet negatív.")
 
         capacity = None
         capacity_raw = row.get("capacity", "")
         if not capacity_raw:
-            result.errors.append("'capacity' is required.")
+            result.errors.append("A „capacity” oszlop kitöltése kötelező.")
         else:
             try:
                 capacity = int(capacity_raw)
             except ValueError:
-                result.errors.append(f"'capacity' must be a whole number (got '{capacity_raw}').")
+                result.errors.append(f"A „capacity” csak egész szám lehet (kapott érték: „{capacity_raw}”).")
             else:
                 if capacity < 1 or capacity > 20:
-                    result.errors.append("'capacity' must be between 1 and 20.")
+                    result.errors.append("A „capacity” értéke 1 és 20 között lehet.")
 
         try:
             is_active = _parse_bool(row.get("is_active"), default=True)
         except ValueError as exc:
-            result.errors.append(f"'is_active': {exc}")
+            result.errors.append(f"„is_active”: {exc}")
             is_active = True
 
         notes = row.get("notes", "")[:1000]
@@ -220,7 +220,7 @@ def build_preview(upload):
         preview.rows.append(result)
 
     if not preview.rows:
-        raise ValidationError("The CSV file contained no data rows.")
+        raise ValidationError("A CSV fájl nem tartalmazott adatsort.")
     return preview
 
 
@@ -233,7 +233,7 @@ def apply_import(*, rows, actor, overwrite_ids=()):
     one transaction, so a late failure rolls the whole import back.
     """
     if not actor.has_capability(Capability.IMPORT_DATA):
-        raise PermissionDenied("Missing capability to import data.")
+        raise PermissionDenied("Nincs jogosultságod adatot importálni.")
 
     overwrite_ids = {int(i) for i in overwrite_ids}
     created = updated = skipped = 0
@@ -247,8 +247,8 @@ def apply_import(*, rows, actor, overwrite_ids=()):
             room = Room.objects.select_for_update().get(pk=row["existing_id"])
             if data["capacity"] < room.occupancy:
                 raise ValidationError(
-                    f"Room {room.number}: capacity {data['capacity']} is below the "
-                    f"current occupancy ({room.occupancy}). Import aborted."
+                    f"{room.number} szoba: a megadott férőhely ({data['capacity']}) kevesebb "
+                    f"a jelenlegi létszámnál ({room.occupancy}). Az import megszakadt."
                 )
             for key, value in data.items():
                 setattr(room, key, value)

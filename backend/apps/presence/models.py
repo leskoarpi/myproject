@@ -46,20 +46,22 @@ class StatusType(TimeStampedModel):
     HOME = "home"
     OTHER = "other"
 
-    code = models.SlugField(max_length=32, unique=True)
-    label = models.CharField(max_length=64)
-    short_label = models.CharField(max_length=16, blank=True)
-    color = models.CharField(max_length=16, default="#64748b")
-    counts_as_inside = models.BooleanField(default=False)
-    student_selectable = models.BooleanField(default=True)
-    requires_note = models.BooleanField(default=False)
-    is_default = models.BooleanField(default=False)
-    sort_order = models.PositiveSmallIntegerField(default=100)
-    is_active = models.BooleanField(default=True)
+    code = models.SlugField("kód", max_length=32, unique=True)
+    label = models.CharField("megnevezés", max_length=64)
+    short_label = models.CharField("rövidítés", max_length=16, blank=True)
+    color = models.CharField("szín", max_length=16, default="#64748b")
+    counts_as_inside = models.BooleanField("bentlévőnek számít", default=False)
+    student_selectable = models.BooleanField("diák választhatja", default=True)
+    requires_note = models.BooleanField("megjegyzés kötelező", default=False)
+    is_default = models.BooleanField("alapértelmezett", default=False)
+    sort_order = models.PositiveSmallIntegerField("sorrend", default=100)
+    is_active = models.BooleanField("aktív", default=True)
 
     objects = StatusTypeQuerySet.as_manager()
 
     class Meta:
+        verbose_name = "státusz"
+        verbose_name_plural = "státuszok"
         ordering = ["sort_order", "label"]
         constraints = [
             models.UniqueConstraint(

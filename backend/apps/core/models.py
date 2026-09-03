@@ -21,14 +21,16 @@ class SchoolYearQuerySet(models.QuerySet):
 class SchoolYear(TimeStampedModel):
     """A dormitory school year, e.g. "2025/2026"."""
 
-    name = models.CharField(max_length=32, unique=True)
-    start_date = models.DateField()
-    end_date = models.DateField()
-    is_active = models.BooleanField(default=False)
+    name = models.CharField("megnevezés", max_length=32, unique=True)
+    start_date = models.DateField("kezdet")
+    end_date = models.DateField("vége")
+    is_active = models.BooleanField("aktív", default=False)
 
     objects = SchoolYearQuerySet.as_manager()
 
     class Meta:
+        verbose_name = "tanév"
+        verbose_name_plural = "tanévek"
         ordering = ["-start_date"]
         constraints = [
             models.CheckConstraint(
@@ -48,7 +50,7 @@ class SchoolYear(TimeStampedModel):
 
     def clean(self):
         if self.start_date and self.end_date and self.end_date <= self.start_date:
-            raise ValidationError({"end_date": "End date must be after the start date."})
+            raise ValidationError({"end_date": "A vége dátumnak a kezdet után kell lennie."})
 
     def contains(self, day):
         return self.start_date <= day <= self.end_date
@@ -74,12 +76,14 @@ class SystemModule(TimeStampedModel):
     historical data is never touched.
     """
 
-    key = models.CharField(max_length=64, choices=ModuleKey.choices, unique=True)
-    name = models.CharField(max_length=128)
-    description = models.TextField(blank=True)
-    is_enabled = models.BooleanField(default=True)
+    key = models.CharField("kulcs", max_length=64, choices=ModuleKey.choices, unique=True)
+    name = models.CharField("megnevezés", max_length=128)
+    description = models.TextField("leírás", blank=True)
+    is_enabled = models.BooleanField("bekapcsolva", default=True)
 
     class Meta:
+        verbose_name = "modul"
+        verbose_name_plural = "modulok"
         ordering = ["name"]
 
     def __str__(self):

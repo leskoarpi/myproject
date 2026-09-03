@@ -166,9 +166,9 @@ class RoomCheck(TimeStampedModel):
 
     session = models.ForeignKey(RoomCheckSession, on_delete=models.CASCADE, related_name="checks")
     room = models.ForeignKey("rooms.Room", on_delete=models.PROTECT, related_name="checks")
-    rating = models.PositiveSmallIntegerField(null=True, blank=True)
-    problems = models.TextField(blank=True)
-    notes = models.TextField(blank=True)
+    rating = models.PositiveSmallIntegerField("értékelés", null=True, blank=True)
+    problems = models.TextField("hibák", blank=True)
+    notes = models.TextField("megjegyzés", blank=True)
     checked_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -209,7 +209,8 @@ class RoomCheckHistory(models.Model):
 
     class Meta:
         ordering = ["-saved_at"]
-        verbose_name_plural = "room check history"
+        verbose_name = "szobaellenőrzés előzmény"
+        verbose_name_plural = "szobaellenőrzés előzmények"
 
     def __str__(self):
         return f"{self.room_check_id} @ {self.saved_at:%Y-%m-%d %H:%M}"

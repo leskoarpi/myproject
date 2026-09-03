@@ -193,3 +193,70 @@ def user_capabilities(user):
     granted.update(c for c in (user.extra_capabilities or []) if c in ALL_CAPABILITIES)
     granted.difference_update(user.revoked_capabilities or [])
     return frozenset(granted)
+
+
+# Human-readable names for the capability codes. The profile page lists a
+# user's capabilities, and "students.view_sensitive" tells a nevelőtanár
+# nothing; this is what they actually see.
+CAPABILITY_LABELS = {
+    Capability.VIEW_STUDENTS: "Diákok megtekintése",
+    Capability.CREATE_STUDENTS: "Diák létrehozása",
+    Capability.EDIT_STUDENTS: "Diák szerkesztése",
+    Capability.ARCHIVE_STUDENTS: "Diák archiválása",
+    Capability.DELETE_STUDENTS: "Diák törlése",
+    Capability.VIEW_SENSITIVE_STUDENT_DATA: "Érzékeny diákadatok megtekintése",
+    Capability.REVIEW_STUDENT_CHANGES: "Változtatási kérelmek elbírálása",
+    Capability.REQUEST_STUDENT_CHANGES: "Változtatási kérelem beadása",
+    Capability.VIEW_PRESENCE: "Jelenlét megtekintése",
+    Capability.EDIT_PRESENCE: "Jelenlét módosítása",
+    Capability.VIEW_PRESENCE_HISTORY: "Jelenléti napló megtekintése",
+    Capability.SELF_PRESENCE: "Saját jelenlét jelölése",
+    Capability.MANAGE_STATUS_TYPES: "Státuszok kezelése",
+    Capability.VIEW_ROOMS: "Szobák megtekintése",
+    Capability.MANAGE_ROOMS: "Szobák kezelése",
+    Capability.MANAGE_ASSIGNMENTS: "Szobabeosztás kezelése",
+    Capability.MANAGE_CALENDAR: "Naptár kezelése",
+    Capability.VIEW_EVENING_CHECK: "Esti ellenőrzés megtekintése",
+    Capability.EDIT_EVENING_CHECK: "Esti ellenőrzés végzése",
+    Capability.REOPEN_EVENING_CHECK: "Esti ellenőrzés újranyitása",
+    Capability.VIEW_ROOM_CHECKS: "Reggeli és szobaellenőrzés megtekintése",
+    Capability.EDIT_ROOM_CHECKS: "Reggeli és szobaellenőrzés végzése",
+    Capability.REOPEN_ROOM_CHECKS: "Reggeli és szobaellenőrzés újranyitása",
+    Capability.VIEW_ROOM_CHECK_HISTORY: "Szobarend előzmények megtekintése",
+    Capability.VIEW_OWN_ROOM_CHECKS: "Saját szoba ellenőrzéseinek megtekintése",
+    Capability.REQUEST_WEEKEND_STAY: "Hétvégi bennmaradás igénylése",
+    Capability.VIEW_WEEKEND_STAY: "Hétvégi bennmaradás megtekintése",
+    Capability.REVIEW_WEEKEND_STAY: "Hétvégi kérelmek elbírálása",
+    Capability.MANAGE_WEEKEND_STAY: "Hétvégi bennmaradás kezelése",
+    Capability.RUN_WEEKEND_CHECK: "Hétvégi ellenőrzés végzése",
+    Capability.REOPEN_WEEKEND_CHECK: "Hétvégi ellenőrzés újranyitása",
+    Capability.VIEW_OWN_PASS_RULE: "Saját kimenő jogosultság megtekintése",
+    Capability.VIEW_PASS_RULES: "Kimenő jogosultságok megtekintése",
+    Capability.MANAGE_PASS_RULES: "Kimenő jogosultság beállítása",
+    Capability.VIEW_TEACHERS: "Nevelőtanárok megtekintése",
+    Capability.MANAGE_TEACHERS: "Nevelőtanárok kezelése",
+    Capability.MANAGE_GROUPS: "Csoportok kezelése",
+    Capability.MANAGE_DATA: "Adatkezelés",
+    Capability.IMPORT_DATA: "Adatimport",
+    Capability.EXPORT_DATA: "Adatexport",
+    Capability.VIEW_REPORTS: "Riportok megtekintése",
+    Capability.VIEW_AUDIT_LOG: "Auditnapló megtekintése",
+    Capability.MANAGE_USERS: "Felhasználók kezelése",
+    Capability.MANAGE_SETTINGS: "Beállítások kezelése",
+    Capability.MANAGE_MODULES: "Modulok kezelése",
+    Capability.MANAGE_MAINTENANCE: "Karbantartás",
+    Capability.DELETE_ALL_DATA: "Teljes adattörlés",
+}
+
+
+def capability_label(code):
+    """The Hungarian name of a capability, falling back to its raw code."""
+    return CAPABILITY_LABELS.get(code, code)
+
+
+def labelled_capabilities(user):
+    """(code, label) pairs for ``user``, sorted for display."""
+    return sorted(
+        ((code, capability_label(code)) for code in user_capabilities(user)),
+        key=lambda pair: pair[1],
+    )

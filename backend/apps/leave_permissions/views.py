@@ -110,7 +110,7 @@ def history(request):
 def my_rule(request):
     student = getattr(request.user, "student_profile", None)
     if student is None:
-        raise PermissionDenied("This account has no student profile.")
+        raise PermissionDenied("Ehhez a fiókhoz nem tartozik diák adatlap.")
     from .services import rule_for
 
     return render(

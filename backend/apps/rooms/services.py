@@ -23,20 +23,20 @@ def assign_student_to_room(
     against a row-locked room so two concurrent moves cannot both squeeze in.
     """
     if not actor.has_capability(Capability.MANAGE_ASSIGNMENTS):
-        raise PermissionDenied("Missing capability to manage room assignments.")
+        raise PermissionDenied("Nincs jogosultságod a szobabeosztás kezeléséhez.")
 
     school_year = school_year or SchoolYear.current()
     if school_year is None:
-        raise ValidationError("No active school year is configured.")
+        raise ValidationError("Nincs beállítva aktív tanév.")
 
     start_date = start_date or timezone.localdate()
     if not school_year.contains(start_date):
-        raise ValidationError("Start date falls outside the selected school year.")
+        raise ValidationError("A kezdő dátum a kiválasztott tanéven kívül esik.")
 
     # Lock the room row for the duration so occupancy cannot race.
     room = Room.objects.select_for_update().get(pk=room.pk)
     if not room.is_active:
-        raise ValidationError("Cannot assign a student to an inactive room.")
+        raise ValidationError("Inaktív szobába nem lehet diákot beosztani.")
 
     current = (
         RoomAssignment.objects.select_for_update()
@@ -51,7 +51,7 @@ def assign_student_to_room(
     occupancy = RoomAssignment.objects.filter(room=room, is_active=True).count()
     if occupancy >= room.capacity and not allow_overfill:
         raise ValidationError(
-            f"Room {room.number} is full ({occupancy}/{room.capacity})."
+            f"A(z) {room.number} szoba tele van ({occupancy}/{room.capacity})."
         )
 
     assignment = RoomAssignment.objects.create(
@@ -77,7 +77,7 @@ def assign_student_to_room(
 def end_room_assignment(*, assignment, actor, end_date=None, audit=True):
     """Close an assignment without destroying the historical record."""
     if not actor.has_capability(Capability.MANAGE_ASSIGNMENTS):
-        raise PermissionDenied("Missing capability to manage room assignments.")
+        raise PermissionDenied("Nincs jogosultságod a szobabeosztás kezeléséhez.")
 
     assignment = RoomAssignment.objects.select_for_update().get(pk=assignment.pk)
     if not assignment.is_active:
@@ -108,7 +108,7 @@ def end_room_assignment(*, assignment, actor, end_date=None, audit=True):
 @transaction.atomic
 def save_room(*, actor, room=None, **fields):
     if not actor.has_capability(Capability.MANAGE_ROOMS):
-        raise PermissionDenied("Missing capability to manage rooms.")
+        raise PermissionDenied("Nincs jogosultságod a szobák kezeléséhez.")
 
     audit_fields = ("number", "floor", "capacity", "is_active")
     if room is None:
@@ -130,7 +130,7 @@ def save_room(*, actor, room=None, **fields):
 
     if room.capacity < room.occupancy:
         raise ValidationError(
-            f"Capacity {room.capacity} is below the current occupancy ({room.occupancy})."
+            f"A megadott férőhely ({room.capacity}) kevesebb a jelenlegi létszámnál ({room.occupancy})."
         )
     room.full_clean()
     room.save()

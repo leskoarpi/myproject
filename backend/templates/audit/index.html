@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load audit_tags %}
 {% block title %}Auditnapló{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Auditnapló</h1>
@@ -24,7 +25,7 @@
           <td class="small">{{ e.username|default:"rendszer" }}</td>
           <td><span class="badge">{{ e.get_action_display }}</span></td>
           <td class="small">{{ e.target_repr|truncatechars:50 }}<div class="muted">{{ e.target_type }}</div></td>
-          <td class="small muted">{% if e.new_value %}{{ e.new_value|truncatechars:80 }}{% else %}—{% endif %}</td>
+          <td class="small muted">{% if e.new_value %}{{ e.new_value|format_change:e.target_type|truncatechars:120 }}{% else %}—{% endif %}</td>
           <td class="small mono muted">{{ e.ip_address|default:"—" }}</td>
         </tr>
       {% empty %}<tr><td colspan="6" class="empty">Nincs bejegyzés.</td></tr>{% endfor %}

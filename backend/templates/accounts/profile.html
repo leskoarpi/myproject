@@ -41,7 +41,7 @@
   <div class="card">
     <h2>Jogosultságok</h2>
     <p class="small muted">Ezek határozzák meg, mit látsz a menüben.</p>
-    <p>{% for c in capabilities %}<span class="badge">{{ c }}</span> {% endfor %}</p>
+    <p>{% for _code, label in capabilities %}<span class="badge">{{ label }}</span> {% endfor %}</p>
   </div>
 </div>
 {% endblock %}

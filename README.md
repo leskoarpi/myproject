@@ -239,9 +239,46 @@ does it before gunicorn starts.
 `AuditLog` answers "who changed what"; domain history tables answer "what
 happened to this student". They are not merged into one generic table.
 Sensitive values (medical notes, guardian contacts, anything password-like)
-are replaced with `[redacted]` before an audit row is written — the trail
+are replaced with `[nem naplózva]` before an audit row is written — the trail
 still shows *that* a field changed. Imported temporary passwords are shown
 once in the UI and never logged.
+
+### The UI is Hungarian throughout (Sept 2026 rework)
+
+Every page a user actually reads is Hungarian: navigation, buttons, form
+labels, validation and permission-refusal messages, the audit trail, and the
+ad-hoc report tables. Two places are deliberately not translated because
+translating them would be wrong, not because they were missed:
+
+- **CSV import column contracts** (`number, floor, capacity, is_active,
+  notes` on the room importer; `username, email, full_name, ...` on the
+  teacher importer). These are literal header names the parser matches
+  against an uploaded file — the same category as a JSON API's field names.
+  Translating the displayed hint without translating what the parser accepts
+  would just make the two disagree.
+- **CSV/JSON export column headers**. The *on-screen* HTML table for every
+  ad-hoc report is translated (`apps/reports/templatetags/report_tags.py::column_label`),
+  but the downloaded CSV/JSON keeps the original English key as its column
+  header, since that is a machine-readable contract another program may
+  already be parsing.
+
+Two spots needed more than a string swap:
+
+- **The audit trail's "Változás" column** used to print a raw Python dict —
+  `{'rating': 4, 'problems': ''}`. Since every model field already carries a
+  Hungarian `verbose_name` (added for this pass), `apps/audit/templatetags/audit_tags.py::format_change`
+  renders `"értékelés: 4; hibák: "` instead, resolving each key against the
+  audited model's own field definitions. Ad-hoc payloads that were never model
+  fields (progress counters, import summaries) get a small hand-written label
+  map with the same fallback-to-raw-key safety net.
+- **The capability list on the profile page** used to show raw codes like
+  `students.view_sensitive`. `apps/accounts/capabilities.py::CAPABILITY_LABELS`
+  maps every capability to a Hungarian phrase for display; the underlying code
+  is unchanged everywhere else, so nothing about authorization itself moved.
+
+A page was checked as every role that can reach it (admin, management,
+teacher, porter, student) rather than once as an administrator, since several
+of these strings only render for a specific role or a specific error path.
 
 ### Validated CSV import (spec §44, §45)
 
@@ -287,7 +324,7 @@ an unprivileged user. `.env` is gitignored; no secret has a usable default.
 
 ## Tests
 
-142 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
+159 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
 constraints):
 
 ```bash
@@ -306,6 +343,12 @@ docker compose exec web pytest
   view layer
 - **Import** — malformed CSV, duplicates, conflicts, overwrite choices,
   transactional rollback
+- **Localization** — every "new record" form renders its Hungarian labels
+  (a regression guard for a keyword-only-argument bug that would otherwise
+  crash the page instead of showing English), the audit trail translates
+  known and unknown payload shapes without crashing, report column headers,
+  capability labels, and a per-role sweep across every page a real user can
+  reach for leftover English vocabulary
 
 ---
 

@@ -13,6 +13,7 @@ from django.utils import timezone
 from apps.audit.middleware import get_client_ip
 from apps.audit.services import AuditAction, record_audit
 
+from .capabilities import labelled_capabilities
 from .models import LoginAttempt
 
 
@@ -33,7 +34,7 @@ class ThrottledAuthenticationForm(AuthenticationForm):
         ip = get_client_ip(self.request)
         if username and _recent_failures(username, ip) >= settings.LOGIN_RATELIMIT_ATTEMPTS:
             raise ValidationError(
-                "Too many failed attempts. Please wait a few minutes and try again.",
+                "Túl sok sikertelen próbálkozás. Várj néhány percet, és próbáld újra.",
                 code="throttled",
             )
         return super().clean()
@@ -126,6 +127,6 @@ def profile(request):
         "profile_user": user,
         "student": getattr(user, "student_profile", None),
         "teacher": getattr(user, "teacher_profile", None),
-        "capabilities": sorted(user.capabilities),
+        "capabilities": labelled_capabilities(user),
     }
     return render(request, "accounts/profile.html", context)

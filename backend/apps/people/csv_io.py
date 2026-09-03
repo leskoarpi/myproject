@@ -100,26 +100,26 @@ def export_csv():
 
 def _decode(upload):
     if upload.size > MAX_UPLOAD_BYTES:
-        raise ValidationError("The uploaded file is too large (limit: 1 MB).")
+        raise ValidationError("A feltöltött fájl túl nagy (legfeljebb 1 MB).")
     raw = upload.read()
     for encoding in ("utf-8-sig", "utf-8", "cp1250", "latin-2"):
         try:
             return raw.decode(encoding)
         except UnicodeDecodeError:
             continue
-    raise ValidationError("The file could not be decoded as UTF-8 or CP1250 text.")
+    raise ValidationError("A fájl nem olvasható UTF-8 vagy CP1250 szövegként.")
 
 
 def build_preview(upload):
     text = _decode(upload)
     reader = csv.DictReader(io.StringIO(text))
     if not reader.fieldnames:
-        raise ValidationError("The CSV file is empty.")
+        raise ValidationError("A CSV fájl üres.")
 
     headers = {(h or "").strip().lower() for h in reader.fieldnames}
     for required in ("username", "email", "full_name"):
         if required not in headers:
-            raise ValidationError(f"Missing required column '{required}'.")
+            raise ValidationError(f"Hiányzik a kötelező „{required}” oszlop.")
 
     known_groups = {g.code.lower(): g for g in Group.objects.all()}
     existing_users = {u.username.lower(): u for u in User.objects.all()}
@@ -129,7 +129,7 @@ def build_preview(upload):
 
     for index, raw_row in enumerate(reader, start=2):
         if index - 1 > MAX_ROWS:
-            raise ValidationError(f"The file has more than {MAX_ROWS} rows.")
+            raise ValidationError(f"A fájl több mint {MAX_ROWS} sort tartalmaz.")
         row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw_row.items() if k}
         if not any(row.values()):
             continue
@@ -140,22 +140,22 @@ def build_preview(upload):
         full_name = row.get("full_name", "")
 
         if not username:
-            result.errors.append("'username' is required.")
+            result.errors.append("A „username” oszlop kitöltése kötelező.")
         elif username.lower() in seen:
-            result.errors.append(f"Duplicate of line {seen[username.lower()]} in this file.")
+            result.errors.append(f"Ismétlődés: a(z) {seen[username.lower()]}. sorral azonos.")
         else:
             seen[username.lower()] = index
 
         if not full_name:
-            result.errors.append("'full_name' is required.")
+            result.errors.append("A „full_name” oszlop kitöltése kötelező.")
 
         if not email:
-            result.errors.append("'email' is required.")
+            result.errors.append("Az „email” oszlop kitöltése kötelező.")
         else:
             try:
                 validate_email(email)
             except ValidationError:
-                result.errors.append(f"'{email}' is not a valid email address.")
+                result.errors.append(f"A(z) „{email}” nem érvényes e-mail cím.")
 
         group_codes = [c.strip() for c in (row.get("groups", "") or "").split(";") if c.strip()]
         primary = row.get("primary_group", "").strip()
@@ -166,7 +166,7 @@ def build_preview(upload):
                 result.missing_groups.append(code)
         if result.missing_groups:
             result.errors.append(
-                "Unknown group(s): " + ", ".join(sorted(set(result.missing_groups)))
+                "Ismeretlen csoport(ok): " + ", ".join(sorted(set(result.missing_groups)))
             )
 
         if result.is_valid:
@@ -174,7 +174,7 @@ def build_preview(upload):
             email_owner = existing_emails.get(email)
             if email_owner is not None and (existing is None or email_owner.pk != existing.pk):
                 result.errors.append(
-                    f"The email {email} already belongs to '{email_owner.username}'."
+                    f"A(z) {email} e-mail cím már a(z) „{email_owner.username}” fiókhoz tartozik."
                 )
 
         if result.is_valid:
@@ -196,16 +196,16 @@ def build_preview(upload):
         preview.rows.append(result)
 
     if not preview.rows:
-        raise ValidationError("The CSV file contained no data rows.")
+        raise ValidationError("A CSV fájl nem tartalmazott adatsort.")
     return preview
 
 
 @transaction.atomic
 def apply_import(*, rows, actor, overwrite_user_ids=()):
     if not actor.has_capability(Capability.IMPORT_DATA):
-        raise PermissionDenied("Missing capability to import data.")
+        raise PermissionDenied("Nincs jogosultságod adatot importálni.")
     if not actor.has_capability(Capability.MANAGE_TEACHERS):
-        raise PermissionDenied("Missing capability to manage teachers.")
+        raise PermissionDenied("Nincs jogosultságod a nevelőtanárok kezeléséhez.")
 
     overwrite_user_ids = {int(i) for i in overwrite_user_ids}
     groups = {g.code.lower(): g for g in Group.objects.all()}

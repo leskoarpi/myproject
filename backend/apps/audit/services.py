@@ -13,7 +13,7 @@ from .models import AuditAction, AuditLog
 
 logger = logging.getLogger(__name__)
 
-REDACTED = "[redacted]"
+REDACTED = "[nem naplózva]"
 
 SENSITIVE_FIELDS = frozenset(
     {

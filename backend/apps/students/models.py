@@ -31,38 +31,44 @@ class StudentProfile(TimeStampedModel):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="student_profile",
+        verbose_name="felhasználó",
     )
-    full_name = models.CharField(max_length=200)
+    full_name = models.CharField("teljes név", max_length=200)
     education_id = models.CharField(
         "oktatási azonosító", max_length=32, unique=True, null=True, blank=True
     )
-    birth_date = models.DateField(null=True, blank=True)
-    school_name = models.CharField(max_length=200, blank=True)
-    school_class = models.CharField(max_length=32, blank=True)
+    birth_date = models.DateField("születési dátum", null=True, blank=True)
+    school_name = models.CharField("iskola", max_length=200, blank=True)
+    school_class = models.CharField("osztály", max_length=32, blank=True)
     group = models.ForeignKey(
         "people.Group",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="students",
+        verbose_name="csoport",
     )
 
-    phone = models.CharField(max_length=32, blank=True)
-    address = models.CharField(max_length=255, blank=True)
+    phone = models.CharField("telefonszám", max_length=32, blank=True)
+    address = models.CharField("lakcím", max_length=255, blank=True)
 
     # Sensitive personal data - see SENSITIVE_FIELDS below.
-    guardian_name = models.CharField(max_length=200, blank=True)
-    guardian_phone = models.CharField(max_length=32, blank=True)
-    guardian_email = models.EmailField(blank=True)
-    emergency_contact_name = models.CharField(max_length=200, blank=True)
-    emergency_contact_phone = models.CharField(max_length=32, blank=True)
-    medical_notes = models.TextField(blank=True)
-    staff_notes = models.TextField(blank=True)
+    guardian_name = models.CharField("gondviselő neve", max_length=200, blank=True)
+    guardian_phone = models.CharField("gondviselő telefonszáma", max_length=32, blank=True)
+    guardian_email = models.EmailField("gondviselő e-mail címe", blank=True)
+    emergency_contact_name = models.CharField(
+        "vészhelyzeti kapcsolattartó", max_length=200, blank=True
+    )
+    emergency_contact_phone = models.CharField(
+        "vészhelyzeti telefonszám", max_length=32, blank=True
+    )
+    medical_notes = models.TextField("egészségügyi megjegyzés", blank=True)
+    staff_notes = models.TextField("nevelői megjegyzés", blank=True)
 
-    move_in_date = models.DateField(null=True, blank=True)
-    move_out_date = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-    archived_at = models.DateTimeField(null=True, blank=True)
+    move_in_date = models.DateField("beköltözés", null=True, blank=True)
+    move_out_date = models.DateField("kiköltözés", null=True, blank=True)
+    is_active = models.BooleanField("aktív", default=True)
+    archived_at = models.DateTimeField("archiválva", null=True, blank=True)
     archived_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -89,6 +95,8 @@ class StudentProfile(TimeStampedModel):
     )
 
     class Meta:
+        verbose_name = "diák"
+        verbose_name_plural = "diákok"
         ordering = ["full_name"]
         indexes = [
             models.Index(fields=["is_active"]),
@@ -108,7 +116,7 @@ class StudentProfile(TimeStampedModel):
 
     def clean(self):
         if self.move_in_date and self.move_out_date and self.move_out_date < self.move_in_date:
-            raise ValidationError({"move_out_date": "Move-out cannot precede move-in."})
+            raise ValidationError({"move_out_date": "A kiköltözés nem lehet korábbi a beköltözésnél."})
 
     @property
     def current_assignment(self):

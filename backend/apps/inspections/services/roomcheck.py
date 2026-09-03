@@ -28,14 +28,14 @@ from ..models import (
 
 def _require_module():
     if not SystemModule.is_module_enabled(ModuleKey.ROOM_CHECKS):
-        raise PermissionDenied("The morning/room check module is disabled.")
+        raise PermissionDenied("A reggeli és szobaellenőrzés modul ki van kapcsolva.")
 
 
 @transaction.atomic
 def open_room_check_session(*, date, floor, actor):
     _require_module()
     if not actor.has_capability(Capability.EDIT_ROOM_CHECKS):
-        raise PermissionDenied("Missing capability to run the morning round.")
+        raise PermissionDenied("Nincs jogosultságod reggeli ellenőrzést végezni.")
 
     session, created = RoomCheckSession.objects.get_or_create(
         date=date,
@@ -60,19 +60,19 @@ def save_room_check(*, room_check, actor, rating=None, problems=None, notes=None
     """Update a room's condition, archiving the previous values first."""
     _require_module()
     if not actor.has_capability(Capability.EDIT_ROOM_CHECKS):
-        raise PermissionDenied("Missing capability to edit room checks.")
+        raise PermissionDenied("Nincs jogosultságod a szobaellenőrzés szerkesztéséhez.")
 
     room_check = (
         RoomCheck.objects.select_for_update().select_related("session").get(pk=room_check.pk)
     )
     if room_check.session.state == InspectionState.CLOSED:
-        raise ValidationError("This session is closed.")
+        raise ValidationError("Ez az ellenőrzés le van zárva.")
 
     if rating is not None:
         rating = int(rating)
         if not (RoomCheck.RATING_MIN <= rating <= RoomCheck.RATING_MAX):
             raise ValidationError(
-                f"Rating must be between {RoomCheck.RATING_MIN} and {RoomCheck.RATING_MAX}."
+                f"Az értékelés {RoomCheck.RATING_MIN} és {RoomCheck.RATING_MAX} között lehet."
             )
 
     # Versioning: keep what was there before instead of overwriting silently.
@@ -131,7 +131,7 @@ def save_student_morning_status(
     """
     _require_module()
     if not actor.has_capability(Capability.EDIT_ROOM_CHECKS):
-        raise PermissionDenied("Missing capability to edit the morning round.")
+        raise PermissionDenied("Nincs jogosultságod a reggeli ellenőrzés szerkesztéséhez.")
 
     room_check = (
         RoomCheck.objects.select_for_update()
@@ -139,18 +139,18 @@ def save_student_morning_status(
         .get(pk=room_check.pk)
     )
     if room_check.session.state == InspectionState.CLOSED:
-        raise ValidationError("This session is closed; reopen it before editing.")
+        raise ValidationError("Ez az ellenőrzés le van zárva; szerkesztés előtt nyisd újra.")
 
     if isinstance(status, str):
         resolved = StatusType.objects.filter(code=status, is_active=True).first()
         if resolved is None:
-            raise ValidationError(f"Unknown or inactive status '{status}'.")
+            raise ValidationError(f"Ismeretlen vagy inaktív státusz: „{status}”.")
         status = resolved
 
     room = student.current_room
     if room is None or room.pk != room_check.room_id:
         raise ValidationError(
-            f"{student.full_name} is not assigned to room {room_check.room.number}."
+            f"{student.full_name} nem a(z) {room_check.room.number} szobában lakik."
         )
 
     result, _ = RoomCheckStudentResult.objects.update_or_create(
@@ -211,7 +211,7 @@ def room_check_progress(session):
 def close_room_check_session(*, session, actor, allow_incomplete=False):
     _require_module()
     if not actor.has_capability(Capability.EDIT_ROOM_CHECKS):
-        raise PermissionDenied("Missing capability to close the morning round.")
+        raise PermissionDenied("Nincs jogosultságod a reggeli ellenőrzés lezárásához.")
 
     session = RoomCheckSession.objects.select_for_update().get(pk=session.pk)
     if session.state == InspectionState.CLOSED:
@@ -239,7 +239,7 @@ def close_room_check_session(*, session, actor, allow_incomplete=False):
 def reopen_room_check_session(*, session, actor, reason=""):
     _require_module()
     if not actor.has_capability(Capability.REOPEN_ROOM_CHECKS):
-        raise PermissionDenied("Missing capability to reopen the morning round.")
+        raise PermissionDenied("Nincs jogosultságod a reggeli ellenőrzés újranyitásához.")
 
     session = RoomCheckSession.objects.select_for_update().get(pk=session.pk)
     if session.state == InspectionState.OPEN:

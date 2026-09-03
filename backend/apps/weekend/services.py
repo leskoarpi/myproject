@@ -23,7 +23,7 @@ from .models import (
 
 def _require_module():
     if not SystemModule.is_module_enabled(ModuleKey.WEEKEND_STAY):
-        raise PermissionDenied("The weekend stay module is disabled.")
+        raise PermissionDenied("A hétvégi bennmaradás modul ki van kapcsolva.")
 
 
 def weekend_stay_queryset_for_user(user, *, weekend_start=None):
@@ -62,16 +62,16 @@ def submit_weekend_stay(
     if not actor.has_capability(Capability.REQUEST_WEEKEND_STAY) and not actor.has_capability(
         Capability.MANAGE_WEEKEND_STAY
     ):
-        raise PermissionDenied("Missing capability to request a weekend stay.")
+        raise PermissionDenied("Nincs jogosultságod hétvégi bennmaradást kérni.")
 
     own_profile = getattr(actor, "student_profile", None)
     if own_profile is not None and own_profile.pk != student.pk:
-        raise PermissionDenied("You may only submit a request for yourself.")
+        raise PermissionDenied("Csak a saját nevedben adhatsz be kérelmet.")
     if own_profile is None and not actor.has_capability(Capability.MANAGE_WEEKEND_STAY):
-        raise PermissionDenied("Missing capability to submit on behalf of a student.")
+        raise PermissionDenied("Nincs jogosultságod más nevében kérelmet beadni.")
 
     if not friday_stay and not saturday_stay:
-        raise ValidationError("Select at least one night.")
+        raise ValidationError("Válassz legalább egy éjszakát.")
 
     weekend_start = weekend_start or friday_of(timezone.localdate())
     room = student.current_room
@@ -146,7 +146,7 @@ def create_guest_stay(
     """
     _require_module()
     if not actor.has_capability(Capability.MANAGE_WEEKEND_STAY):
-        raise PermissionDenied("Missing capability to manage weekend stays.")
+        raise PermissionDenied("Nincs jogosultságod a hétvégi bennmaradás kezeléséhez.")
 
     stay = WeekendStay(
         weekend_start=weekend_start,
@@ -174,18 +174,18 @@ def review_weekend_stay(*, stay, actor, approve, note=""):
     """Approve or reject a pending request. Students cannot review their own."""
     _require_module()
     if not actor.has_capability(Capability.REVIEW_WEEKEND_STAY):
-        raise PermissionDenied("Missing capability to review weekend stays.")
+        raise PermissionDenied("Nincs jogosultságod hétvégi kérelmet elbírálni.")
 
     own_profile = getattr(actor, "student_profile", None)
     if own_profile is not None and stay.student_id == own_profile.pk:
-        raise PermissionDenied("You may not review your own request.")
+        raise PermissionDenied("A saját kérelmedet nem bírálhatod el.")
 
     if not weekend_stay_queryset_for_user(actor).filter(pk=stay.pk).exists():
-        raise PermissionDenied("This request is outside your scope.")
+        raise PermissionDenied("Ez a kérelem kívül esik a hatáskörödön.")
 
     stay = WeekendStay.objects.select_for_update().get(pk=stay.pk)
     if stay.status not in {StayStatus.PENDING, StayStatus.APPROVED, StayStatus.REJECTED}:
-        raise ValidationError("This request can no longer be reviewed.")
+        raise ValidationError("Ez a kérelem már nem bírálható el.")
 
     previous = stay.status
     stay.status = StayStatus.APPROVED if approve else StayStatus.REJECTED
@@ -211,9 +211,9 @@ def cancel_weekend_stay(*, stay, actor):
     own_profile = getattr(actor, "student_profile", None)
     is_owner = own_profile is not None and stay.student_id == own_profile.pk
     if not is_owner and not actor.has_capability(Capability.MANAGE_WEEKEND_STAY):
-        raise PermissionDenied("You may not cancel this request.")
+        raise PermissionDenied("Ezt a kérelmet nem vonhatod vissza.")
     if is_owner and stay.status == StayStatus.APPROVED:
-        raise ValidationError("Approved requests can only be cancelled by staff.")
+        raise ValidationError("A jóváhagyott kérelmet csak nevelőtanár vonhatja vissza.")
 
     stay = WeekendStay.objects.select_for_update().get(pk=stay.pk)
     stay.status = StayStatus.CANCELLED
@@ -227,9 +227,9 @@ def open_weekend_check_session(*, weekend_start, check_type, actor):
     """Open a check session and materialise a row per relevant approved stay."""
     _require_module()
     if not actor.has_capability(Capability.RUN_WEEKEND_CHECK):
-        raise PermissionDenied("Missing capability to run weekend checks.")
+        raise PermissionDenied("Nincs jogosultságod hétvégi ellenőrzést végezni.")
     if check_type not in WeekendCheckType.values:
-        raise ValidationError(f"Unknown check type '{check_type}'.")
+        raise ValidationError(f"Ismeretlen ellenőrzéstípus: „{check_type}”.")
 
     session, created = WeekendCheckSession.objects.get_or_create(
         weekend_start=weekend_start,
@@ -254,13 +254,13 @@ def open_weekend_check_session(*, weekend_start, check_type, actor):
 def record_weekend_check(*, session, stay, actor, result, note=""):
     _require_module()
     if not actor.has_capability(Capability.RUN_WEEKEND_CHECK):
-        raise PermissionDenied("Missing capability to run weekend checks.")
+        raise PermissionDenied("Nincs jogosultságod hétvégi ellenőrzést végezni.")
     if result not in WeekendCheckResult.values:
-        raise ValidationError(f"Unknown result '{result}'.")
+        raise ValidationError(f"Ismeretlen eredmény: „{result}”.")
 
     session = WeekendCheckSession.objects.select_for_update().get(pk=session.pk)
     if session.state == InspectionState.CLOSED:
-        raise ValidationError("This check session is closed.")
+        raise ValidationError("Ez az ellenőrzés le van zárva.")
 
     check, _ = WeekendCheck.objects.update_or_create(
         session=session,
@@ -281,7 +281,7 @@ def record_weekend_check(*, session, stay, actor, result, note=""):
 def close_weekend_check_session(*, session, actor):
     _require_module()
     if not actor.has_capability(Capability.RUN_WEEKEND_CHECK):
-        raise PermissionDenied("Missing capability to close weekend checks.")
+        raise PermissionDenied("Nincs jogosultságod a hétvégi ellenőrzés lezárásához.")
 
     session = WeekendCheckSession.objects.select_for_update().get(pk=session.pk)
     if session.state == InspectionState.CLOSED:
@@ -298,7 +298,7 @@ def close_weekend_check_session(*, session, actor):
 def reopen_weekend_check_session(*, session, actor, reason=""):
     _require_module()
     if not actor.has_capability(Capability.REOPEN_WEEKEND_CHECK):
-        raise PermissionDenied("Missing capability to reopen weekend checks.")
+        raise PermissionDenied("Nincs jogosultságod a hétvégi ellenőrzés újranyitásához.")
 
     session = WeekendCheckSession.objects.select_for_update().get(pk=session.pk)
     if session.state == InspectionState.OPEN:

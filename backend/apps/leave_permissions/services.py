@@ -21,7 +21,7 @@ from .models import PassEligibility, PassRuleHistory, StudentPassRule
 
 def _require_module():
     if not SystemModule.is_module_enabled(ModuleKey.PASS_RULES):
-        raise PermissionDenied("The pass rule module is disabled.")
+        raise PermissionDenied("A kimenő jogosultság modul ki van kapcsolva.")
 
 
 def pass_rule_queryset_for_user(user):
@@ -63,9 +63,9 @@ def set_pass_rule(*, student, actor, eligibility, note=""):
     """Set a student's pass rule and append the change to the history."""
     _require_module()
     if not can_set_pass_rule(actor, student):
-        raise PermissionDenied("You may not set this student's pass rule.")
+        raise PermissionDenied("Ennek a diáknak a kimenő jogosultságát nem állíthatod be.")
     if eligibility not in PassEligibility.values:
-        raise ValidationError(f"Unknown eligibility '{eligibility}'.")
+        raise ValidationError(f"Ismeretlen beállítás: „{eligibility}”.")
 
     note = (note or "").strip()[:255]
     if eligibility == PassEligibility.OTHER and not note:

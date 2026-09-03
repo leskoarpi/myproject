@@ -26,21 +26,27 @@ class User(AbstractUser):
     """
 
     email = models.EmailField("email address", unique=True)
-    role = models.CharField(max_length=32, choices=Role.choices, default=Role.STUDENT)
-    phone = models.CharField(max_length=32, blank=True)
+    role = models.CharField(
+        "szerepkör", max_length=32, choices=Role.choices, default=Role.STUDENT
+    )
+    phone = models.CharField("telefonszám", max_length=32, blank=True)
 
     # New accounts are created with a temporary password and are pushed through
     # a password change on their first request (spec section 4).
-    must_change_password = models.BooleanField(default=False)
-    password_changed_at = models.DateTimeField(null=True, blank=True)
+    must_change_password = models.BooleanField("jelszócsere kötelező", default=False)
+    password_changed_at = models.DateTimeField(
+        "jelszó módosítva", null=True, blank=True
+    )
 
     # Per-user deviations from the role default.
-    extra_capabilities = models.JSONField(default=list, blank=True)
-    revoked_capabilities = models.JSONField(default=list, blank=True)
+    extra_capabilities = models.JSONField("többletjogosultságok", default=list, blank=True)
+    revoked_capabilities = models.JSONField("visszavont jogosultságok", default=list, blank=True)
 
     objects = UserManager()
 
     class Meta:
+        verbose_name = "felhasználó"
+        verbose_name_plural = "felhasználók"
         ordering = ["last_name", "first_name", "username"]
         indexes = [models.Index(fields=["role"])]
 

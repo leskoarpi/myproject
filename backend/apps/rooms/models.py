@@ -29,15 +29,17 @@ class RoomQuerySet(models.QuerySet):
 
 
 class Room(TimeStampedModel):
-    number = models.CharField(max_length=16, unique=True)
-    floor = models.PositiveSmallIntegerField()
-    capacity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
-    notes = models.TextField(blank=True)
-    is_active = models.BooleanField(default=True)
+    number = models.CharField("szobaszám", max_length=16, unique=True)
+    floor = models.PositiveSmallIntegerField("emelet")
+    capacity = models.PositiveSmallIntegerField("férőhely", validators=[MinValueValidator(1)])
+    notes = models.TextField("megjegyzés", blank=True)
+    is_active = models.BooleanField("aktív", default=True)
 
     objects = RoomQuerySet.as_manager()
 
     class Meta:
+        verbose_name = "szoba"
+        verbose_name_plural = "szobák"
         ordering = ["floor", "number"]
         indexes = [models.Index(fields=["floor"])]
         constraints = [
@@ -87,10 +89,10 @@ class RoomAssignment(TimeStampedModel):
     school_year = models.ForeignKey(
         "core.SchoolYear", on_delete=models.PROTECT, related_name="room_assignments"
     )
-    start_date = models.DateField()
-    end_date = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-    note = models.CharField(max_length=255, blank=True)
+    start_date = models.DateField("kezdet")
+    end_date = models.DateField("vége", null=True, blank=True)
+    is_active = models.BooleanField("aktív", default=True)
+    note = models.CharField("megjegyzés", max_length=255, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -109,6 +111,8 @@ class RoomAssignment(TimeStampedModel):
     objects = RoomAssignmentQuerySet.as_manager()
 
     class Meta:
+        verbose_name = "szobabeosztás"
+        verbose_name_plural = "szobabeosztások"
         ordering = ["-start_date", "-id"]
         indexes = [
             models.Index(fields=["student", "is_active"]),
@@ -137,8 +141,8 @@ class RoomAssignment(TimeStampedModel):
 
     def clean(self):
         if self.end_date and self.end_date < self.start_date:
-            raise ValidationError({"end_date": "End date cannot precede the start date."})
+            raise ValidationError({"end_date": "A vége dátum nem lehet korábbi a kezdetnél."})
         if self.school_year_id and not self.school_year.contains(self.start_date):
             raise ValidationError(
-                {"start_date": "Start date falls outside the selected school year."}
+                {"start_date": "A kezdő dátum a kiválasztott tanéven kívül esik."}
             )

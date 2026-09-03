@@ -200,7 +200,7 @@ def test_login_throttle_kicks_in(client, settings, world):
         client.post(url, {"username": "someone", "password": "wrong"})
 
     response = client.post(url, {"username": "someone", "password": "wrong"})
-    assert "Too many failed attempts" in response.content.decode()
+    assert "Túl sok sikertelen próbálkozás" in response.content.decode()
 
 
 def test_audit_log_redacts_sensitive_values(world):

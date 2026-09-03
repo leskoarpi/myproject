@@ -32,8 +32,8 @@ class GroupForm(forms.ModelForm):
 
 
 class TeacherForm(forms.ModelForm):
-    username = forms.CharField(max_length=150, required=False)
-    email = forms.EmailField(required=False)
+    username = forms.CharField(label="Felhasználónév", max_length=150, required=False)
+    email = forms.EmailField(label="E-mail cím", required=False)
 
     class Meta:
         model = Teacher

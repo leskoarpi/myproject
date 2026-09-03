@@ -36,9 +36,13 @@ class StudentPassRule(TimeStampedModel):
         "students.StudentProfile", on_delete=models.CASCADE, related_name="pass_rule"
     )
     eligibility = models.CharField(
-        max_length=16, choices=PassEligibility.choices, default=PassEligibility.ALLOWED
+        "beállítás",
+        max_length=16,
+        choices=PassEligibility.choices,
+        default=PassEligibility.ALLOWED,
     )
     note = models.CharField(
+        "megjegyzés",
         max_length=255,
         blank=True,
         help_text="Kötelező, ha az „Egyéb” beállítás van kiválasztva.",
@@ -55,6 +59,8 @@ class StudentPassRule(TimeStampedModel):
     objects = PassRuleQuerySet.as_manager()
 
     class Meta:
+        verbose_name = "kimenő jogosultság"
+        verbose_name_plural = "kimenő jogosultságok"
         ordering = ["student__full_name"]
         indexes = [models.Index(fields=["eligibility"])]
         constraints = [
@@ -111,7 +117,8 @@ class PassRuleHistory(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [models.Index(fields=["student", "-created_at"])]
-        verbose_name_plural = "pass rule history"
+        verbose_name = "kimenő jogosultság előzmény"
+        verbose_name_plural = "kimenő jogosultság előzmények"
 
     def __str__(self):
         return f"{self.student} -> {self.new_eligibility} @ {self.created_at:%Y-%m-%d %H:%M}"

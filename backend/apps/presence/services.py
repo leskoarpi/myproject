@@ -57,7 +57,7 @@ def ensure_presence_row(student):
         return presence
     default_status = StatusType.default()
     if default_status is None:
-        raise ValidationError("No status types are configured.")
+        raise ValidationError("Nincsenek beállítva státuszok.")
     return StudentPresence.objects.create(
         student=student,
         status=default_status,
@@ -84,18 +84,18 @@ def change_student_presence(
     already the requested one (no-op changes are not recorded).
     """
     if enforce_permissions and not can_change_presence_of(actor, student):
-        raise PermissionDenied("You may not change this student's presence.")
+        raise PermissionDenied("Ennek a diáknak a jelenlétét nem módosíthatod.")
 
     if isinstance(new_status, str):
         resolved = StatusType.objects.filter(code=new_status, is_active=True).first()
         if resolved is None:
-            raise ValidationError(f"Unknown or inactive status '{new_status}'.")
+            raise ValidationError(f"Ismeretlen vagy inaktív státusz: „{new_status}”.")
         new_status = resolved
     elif not new_status.is_active:
-        raise ValidationError(f"Status '{new_status.code}' is not active.")
+        raise ValidationError(f"A(z) „{new_status.code}” státusz nem aktív.")
 
     if new_status.requires_note and not reason.strip():
-        raise ValidationError(f"Status '{new_status.label}' requires a note.")
+        raise ValidationError(f"A(z) „{new_status.label}” státuszhoz megjegyzés kell.")
 
     source = source or source_for_actor(actor)
     when = when or timezone.now()
@@ -152,7 +152,7 @@ def student_return(*, student, actor, reason=""):
     applies, and this guard makes a stale page or a double tap harmless.
     """
     if not can_change_presence_of(actor, student):
-        raise PermissionDenied("You may not change this student's presence.")
+        raise PermissionDenied("Ennek a diáknak a jelenlétét nem módosíthatod.")
 
     presence = ensure_presence_row(student)
     if presence.status.counts_as_inside:
@@ -162,7 +162,7 @@ def student_return(*, student, actor, reason=""):
         "sort_order"
     ).first()
     if inside is None:
-        raise ValidationError("No 'inside' status is configured.")
+        raise ValidationError("Nincs beállítva „bent” státusz.")
     return change_student_presence(
         student=student, new_status=inside, actor=actor, reason=reason
     )
@@ -174,7 +174,7 @@ def student_leave(*, student, actor, status_code, reason=""):
     The other half of the switch: only available while the student is inside.
     """
     if not can_change_presence_of(actor, student):
-        raise PermissionDenied("You may not change this student's presence.")
+        raise PermissionDenied("Ennek a diáknak a jelenlétét nem módosíthatod.")
 
     presence = ensure_presence_row(student)
     if not presence.status.counts_as_inside:
@@ -186,9 +186,9 @@ def student_leave(*, student, actor, status_code, reason=""):
         code=status_code, is_active=True, student_selectable=True
     ).first()
     if status is None:
-        raise ValidationError("That reason is not selectable.")
+        raise ValidationError("Ez az ok nem választható.")
     if status.counts_as_inside:
-        raise ValidationError("That status is not a leaving reason.")
+        raise ValidationError("Ez a státusz nem kimeneteli ok.")
     return change_student_presence(
         student=student, new_status=status, actor=actor, reason=reason
     )

@@ -124,7 +124,7 @@ def student_edit(request, student_id):
     )
     allowed = editable_fields_for(request.user, student)
     if not allowed:
-        raise PermissionDenied("You may not edit this student.")
+        raise PermissionDenied("Ezt a diákot nem szerkesztheted.")
 
     if request.method == "POST":
         form = StudentForm(request.POST, instance=student, allowed_fields=allowed)

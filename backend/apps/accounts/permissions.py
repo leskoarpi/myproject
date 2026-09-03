@@ -23,7 +23,7 @@ def require_capabilities(*capabilities, require_all=True):
                 return redirect_to_login(request.get_full_path())
             check = all if require_all else any
             if not check(user.has_capability(c) for c in capabilities):
-                raise PermissionDenied("Missing capability.")
+                raise PermissionDenied("Ehhez a művelethez nincs jogosultságod.")
             return view(request, *args, **kwargs)
 
         return wrapper
@@ -42,7 +42,7 @@ def require_module(module_key):
         @wraps(view)
         def wrapper(request, *args, **kwargs):
             if not SystemModule.is_module_enabled(module_key):
-                raise PermissionDenied("This module is disabled.")
+                raise PermissionDenied("Ez a modul ki van kapcsolva.")
             return view(request, *args, **kwargs)
 
         return wrapper
@@ -61,10 +61,10 @@ class CapabilityRequiredMixin:
         if not request.user.is_authenticated:
             return redirect_to_login(request.get_full_path())
         if self.required_module and not SystemModule.is_module_enabled(self.required_module):
-            raise PermissionDenied("This module is disabled.")
+            raise PermissionDenied("Ez a modul ki van kapcsolva.")
         caps = self.required_capabilities
         if caps:
             check = all if self.require_all_capabilities else any
             if not check(request.user.has_capability(c) for c in caps):
-                raise PermissionDenied("Missing capability.")
+                raise PermissionDenied("Ehhez a művelethez nincs jogosultságod.")
         return super().dispatch(request, *args, **kwargs)

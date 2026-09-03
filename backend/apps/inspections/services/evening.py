@@ -29,7 +29,7 @@ class SessionLocked(PermissionDenied):
 
 def _require_module():
     if not SystemModule.is_module_enabled(ModuleKey.EVENING_CHECK):
-        raise PermissionDenied("The evening check module is disabled.")
+        raise PermissionDenied("Az esti ellenőrzés modul ki van kapcsolva.")
 
 
 @transaction.atomic
@@ -37,9 +37,9 @@ def open_evening_session(*, calendar_day, floor, actor):
     """Open (or return) the session for one floor on one day."""
     _require_module()
     if not actor.has_capability(Capability.EDIT_EVENING_CHECK):
-        raise PermissionDenied("Missing capability to run the evening check.")
+        raise PermissionDenied("Nincs jogosultságod esti ellenőrzést végezni.")
     if not calendar_day.evening_check_required:
-        raise ValidationError("No evening check is required on this day.")
+        raise ValidationError("Erre a napra nincs esti ellenőrzés előírva.")
 
     session, created = EveningCheckSession.objects.get_or_create(
         calendar_day=calendar_day,
@@ -60,13 +60,13 @@ def acquire_session_lock(*, session, actor, model=EveningCheckSession):
     """Take the advisory edit lock, or fail if someone else holds a fresh one."""
     session = model.objects.select_for_update().get(pk=session.pk)
     if session.state != InspectionState.OPEN:
-        raise ValidationError("This session is closed.")
+        raise ValidationError("Ez az ellenőrzés le van zárva.")
 
     timeout = settings.INSPECTION_LOCK_TIMEOUT_SECONDS
     holder_id = session.locked_by_id
     if holder_id and holder_id != actor.pk and not session.lock_is_stale(timeout):
         raise SessionLocked(
-            f"{session.lock_holder_display()} is currently editing this session."
+            f"{session.lock_holder_display()} éppen ezt az ellenőrzést szerkeszti."
         )
 
     session.locked_by = actor
@@ -97,11 +97,11 @@ def save_evening_result(*, session, student, status, actor, note="", sync_presen
     """
     _require_module()
     if not actor.has_capability(Capability.EDIT_EVENING_CHECK):
-        raise PermissionDenied("Missing capability to edit the evening check.")
+        raise PermissionDenied("Nincs jogosultságod az esti ellenőrzés szerkesztéséhez.")
 
     session = EveningCheckSession.objects.select_for_update().get(pk=session.pk)
     if session.state != InspectionState.OPEN:
-        raise ValidationError("This session is closed; reopen it before editing.")
+        raise ValidationError("Ez az ellenőrzés le van zárva; szerkesztés előtt nyisd újra.")
 
     timeout = settings.INSPECTION_LOCK_TIMEOUT_SECONDS
     if (
@@ -109,18 +109,18 @@ def save_evening_result(*, session, student, status, actor, note="", sync_presen
         and session.locked_by_id != actor.pk
         and not session.lock_is_stale(timeout)
     ):
-        raise SessionLocked(f"{session.lock_holder_display()} is editing this session.")
+        raise SessionLocked(f"{session.lock_holder_display()} éppen ezt az ellenőrzést szerkeszti.")
 
     if isinstance(status, str):
         resolved = StatusType.objects.filter(code=status, is_active=True).first()
         if resolved is None:
-            raise ValidationError(f"Unknown status '{status}'.")
+            raise ValidationError(f"Ismeretlen státusz: „{status}”.")
         status = resolved
 
     room = student.current_room
     if room is None or room.floor != session.floor:
         raise ValidationError(
-            f"{student.full_name} is not assigned to a room on floor {session.floor}."
+            f"{student.full_name} nem a(z) {session.floor}. emeleten lakik."
         )
 
     result, _ = EveningCheckResult.objects.update_or_create(
@@ -172,7 +172,7 @@ def evening_session_progress(session):
 def close_evening_session(*, session, actor, allow_incomplete=False):
     _require_module()
     if not actor.has_capability(Capability.EDIT_EVENING_CHECK):
-        raise PermissionDenied("Missing capability to close the evening check.")
+        raise PermissionDenied("Nincs jogosultságod az esti ellenőrzés lezárásához.")
 
     session = EveningCheckSession.objects.select_for_update().get(pk=session.pk)
     if session.state == InspectionState.CLOSED:
@@ -181,7 +181,7 @@ def close_evening_session(*, session, actor, allow_incomplete=False):
     progress = evening_session_progress(session)
     if progress["missing"] and not allow_incomplete:
         raise ValidationError(
-            f"{progress['missing']} student(s) have no result yet on this floor."
+            f"Ezen az emeleten {progress['missing']} diáknak még nincs eredménye."
         )
 
     session.state = InspectionState.CLOSED
@@ -212,7 +212,7 @@ def close_evening_session(*, session, actor, allow_incomplete=False):
 def reopen_evening_session(*, session, actor, reason=""):
     _require_module()
     if not actor.has_capability(Capability.REOPEN_EVENING_CHECK):
-        raise PermissionDenied("Missing capability to reopen the evening check.")
+        raise PermissionDenied("Nincs jogosultságod az esti ellenőrzés újranyitásához.")
 
     session = EveningCheckSession.objects.select_for_update().get(pk=session.pk)
     if session.state == InspectionState.OPEN:

@@ -91,7 +91,7 @@ def my_stay(request):
     """Student self-service registration."""
     student = getattr(request.user, "student_profile", None)
     if student is None:
-        raise PermissionDenied("This account has no student profile.")
+        raise PermissionDenied("Ehhez a fiókhoz nem tartozik diák adatlap.")
 
     weekend_start = friday_of(timezone.localdate())
     if request.method == "POST":
@@ -185,7 +185,7 @@ def add_guest(request):
 def check_session(request, weekend, check_type):
     weekend_start = friday_of(dt.date.fromisoformat(weekend))
     if check_type not in WeekendCheckType.values:
-        raise PermissionDenied("Unknown check type.")
+        raise PermissionDenied("Ismeretlen ellenőrzéstípus.")
 
     session = open_weekend_check_session(
         weekend_start=weekend_start, check_type=check_type, actor=request.user

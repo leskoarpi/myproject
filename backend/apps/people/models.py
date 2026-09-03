@@ -7,12 +7,14 @@ from apps.core.models import TimeStampedModel
 class Group(TimeStampedModel):
     """A dormitory group ("csoport"). Students belong to one; teachers to many."""
 
-    code = models.CharField(max_length=32, unique=True)
-    name = models.CharField(max_length=128)
-    description = models.TextField(blank=True)
-    is_active = models.BooleanField(default=True)
+    code = models.CharField("kód", max_length=32, unique=True)
+    name = models.CharField("név", max_length=128)
+    description = models.TextField("leírás", blank=True)
+    is_active = models.BooleanField("aktív", default=True)
 
     class Meta:
+        verbose_name = "csoport"
+        verbose_name_plural = "csoportok"
         ordering = ["code"]
 
     def __str__(self):
@@ -33,24 +35,33 @@ class Teacher(TimeStampedModel):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="teacher_profile"
     )
-    full_name = models.CharField(max_length=200)
-    phone = models.CharField(max_length=32, blank=True)
+    full_name = models.CharField("teljes név", max_length=200)
+    phone = models.CharField("telefonszám", max_length=32, blank=True)
     primary_group = models.ForeignKey(
         Group,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="primary_teachers",
+        verbose_name="elsődleges csoport",
     )
-    groups = models.ManyToManyField(Group, blank=True, related_name="teachers")
+    groups = models.ManyToManyField(
+        Group, blank=True, related_name="teachers", verbose_name="további csoportok"
+    )
 
     # Management may widen a single teacher's weekend reach (spec section 3.3).
-    can_manage_all_weekend_stays = models.BooleanField(default=False)
+    can_manage_all_weekend_stays = models.BooleanField(
+        "teljes hétvégi jogosultság", default=False
+    )
     # Escape hatch for staff who legitimately need every student.
-    has_all_student_access = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
+    has_all_student_access = models.BooleanField(
+        "minden diákhoz hozzáfér", default=False
+    )
+    is_active = models.BooleanField("aktív", default=True)
 
     class Meta:
+        verbose_name = "nevelőtanár"
+        verbose_name_plural = "nevelőtanárok"
         ordering = ["full_name"]
 
     def __str__(self):

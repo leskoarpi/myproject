@@ -41,7 +41,7 @@ def _serialize(value):
 def update_student(*, student, changes, actor):
     """Apply ``changes`` to ``student`` after checking scope and field rights."""
     if not can_edit_student(actor, student):
-        raise PermissionDenied("You may not edit this student.")
+        raise PermissionDenied("Ezt a diákot nem szerkesztheted.")
 
     allowed = editable_fields_for(actor, student)
     rejected = set(changes) - set(allowed)
@@ -73,9 +73,9 @@ def update_student(*, student, changes, actor):
 def archive_student(*, student, actor, move_out_date=None, note=""):
     """Archive rather than delete: history must stay valid (spec section 7)."""
     if not actor.has_capability(Capability.ARCHIVE_STUDENTS):
-        raise PermissionDenied("Missing capability to archive students.")
+        raise PermissionDenied("Nincs jogosultságod diákot archiválni.")
     if not can_view_student(actor, student):
-        raise PermissionDenied("You may not act on this student.")
+        raise PermissionDenied("Ehhez a diákhoz nincs hozzáférésed.")
 
     student = StudentProfile.objects.select_for_update().get(pk=student.pk)
     if not student.is_active:
@@ -133,18 +133,18 @@ def reactivate_student(*, student, actor):
 def submit_student_change_request(*, student, actor, proposed_changes, reason=""):
     """Teacher proposes changes to fields they cannot write directly."""
     if not actor.has_capability(Capability.REQUEST_STUDENT_CHANGES):
-        raise PermissionDenied("Missing capability to request student changes.")
+        raise PermissionDenied("Nincs jogosultságod változtatási kérelmet beadni.")
     if not can_view_student(actor, student):
-        raise PermissionDenied("You may not act on this student.")
+        raise PermissionDenied("Ehhez a diákhoz nincs hozzáférésed.")
     if not proposed_changes:
-        raise ValidationError("No changes were proposed.")
+        raise ValidationError("Nem javasoltál változtatást.")
 
     valid_fields = {
         f.name for f in StudentProfile._meta.get_fields() if getattr(f, "editable", False)
     }
     unknown = set(proposed_changes) - valid_fields
     if unknown:
-        raise ValidationError("Unknown fields: " + ", ".join(sorted(unknown)))
+        raise ValidationError("Ismeretlen mezők: " + ", ".join(sorted(unknown)))
 
     previous = {
         field: _serialize(getattr(student, field, None)) for field in proposed_changes
@@ -170,13 +170,13 @@ def submit_student_change_request(*, student, actor, proposed_changes, reason=""
 @transaction.atomic
 def approve_student_change_request(*, change_request, actor, note=""):
     if not actor.has_capability(Capability.REVIEW_STUDENT_CHANGES):
-        raise PermissionDenied("Missing capability to review student changes.")
+        raise PermissionDenied("Nincs jogosultságod változtatási kérelmet elbírálni.")
 
     change_request = StudentChangeRequest.objects.select_for_update().get(
         pk=change_request.pk
     )
     if not change_request.is_pending:
-        raise ValidationError("This request has already been reviewed.")
+        raise ValidationError("Ezt a kérelmet már elbírálták.")
 
     student = StudentProfile.objects.select_for_update().get(pk=change_request.student_id)
     before = model_snapshot(student, AUDITED_STUDENT_FIELDS)
@@ -212,13 +212,13 @@ def approve_student_change_request(*, change_request, actor, note=""):
 @transaction.atomic
 def reject_student_change_request(*, change_request, actor, note=""):
     if not actor.has_capability(Capability.REVIEW_STUDENT_CHANGES):
-        raise PermissionDenied("Missing capability to review student changes.")
+        raise PermissionDenied("Nincs jogosultságod változtatási kérelmet elbírálni.")
 
     change_request = StudentChangeRequest.objects.select_for_update().get(
         pk=change_request.pk
     )
     if not change_request.is_pending:
-        raise ValidationError("This request has already been reviewed.")
+        raise ValidationError("Ezt a kérelmet már elbírálták.")
 
     change_request.status = ChangeRequestStatus.REJECTED
     change_request.reviewed_by = actor

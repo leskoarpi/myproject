@@ -73,9 +73,9 @@ class WeekendStay(TimeStampedModel):
     group_name = models.CharField(max_length=128, blank=True)
     display_name = models.CharField(max_length=200, blank=True)
 
-    friday_stay = models.BooleanField(default=False)
-    saturday_stay = models.BooleanField(default=False)
-    note = models.TextField(blank=True)
+    friday_stay = models.BooleanField("péntek éjszaka", default=False)
+    saturday_stay = models.BooleanField("szombat éjszaka", default=False)
+    note = models.TextField("megjegyzés", blank=True)
 
     status = models.CharField(
         max_length=16, choices=StayStatus.choices, default=StayStatus.PENDING
@@ -92,6 +92,8 @@ class WeekendStay(TimeStampedModel):
     objects = WeekendStayQuerySet.as_manager()
 
     class Meta:
+        verbose_name = "hétvégi bennmaradás"
+        verbose_name_plural = "hétvégi bennmaradások"
         ordering = ["room_number", "display_name"]
         constraints = [
             models.UniqueConstraint(
@@ -116,11 +118,11 @@ class WeekendStay(TimeStampedModel):
 
     def clean(self):
         if self.is_guest and not self.guest_name:
-            raise ValidationError({"guest_name": "A guest entry needs a name."})
+            raise ValidationError({"guest_name": "A vendéghez név szükséges."})
         if not self.friday_stay and not self.saturday_stay:
-            raise ValidationError("Select at least one night.")
+            raise ValidationError("Válassz legalább egy éjszakát.")
         if self.weekend_start and self.weekend_start.weekday() != 4:
-            raise ValidationError({"weekend_start": "The weekend must start on a Friday."})
+            raise ValidationError({"weekend_start": "A hétvégének péntekkel kell kezdődnie."})
 
     def save(self, *args, **kwargs):
         if not self.display_name:

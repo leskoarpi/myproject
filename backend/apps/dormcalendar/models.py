@@ -36,17 +36,21 @@ class CalendarDay(TimeStampedModel):
     (spec sections 15 and 54).
     """
 
-    date = models.DateField(unique=True)
+    date = models.DateField("dátum", unique=True)
     school_year = models.ForeignKey(
         "core.SchoolYear", on_delete=models.CASCADE, related_name="calendar_days"
     )
-    status = models.CharField(max_length=16, choices=DayStatus.choices, default=DayStatus.NORMAL)
-    evening_check_required = models.BooleanField(default=True)
-    note = models.CharField(max_length=255, blank=True)
+    status = models.CharField(
+        "nap típusa", max_length=16, choices=DayStatus.choices, default=DayStatus.NORMAL
+    )
+    evening_check_required = models.BooleanField("esti ellenőrzés kell", default=True)
+    note = models.CharField("megjegyzés", max_length=255, blank=True)
 
     objects = CalendarDayQuerySet.as_manager()
 
     class Meta:
+        verbose_name = "naptári nap"
+        verbose_name_plural = "naptári napok"
         ordering = ["-date"]
         indexes = [models.Index(fields=["-date"]), models.Index(fields=["school_year", "date"])]
 
