@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Felhasználók{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Felhasználók</h1><p class="subtitle">{{ page.paginator.count }} fiók · szerepkör és jogosultság kezelése</p></div>
+</div>
+
+<form class="filters" method="get">
+  <div><label for="q">Keresés</label><input type="search" id="q" name="q" value="{{ search }}" placeholder="Név, felhasználónév vagy e-mail"></div>
+  <div><label for="role">Szerepkör</label>
+    <select id="role" name="role"><option value="">Mind</option>
+      {% for value, label in roles %}<option value="{{ value }}" {% if value == selected_role %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></div>
+  <div><button class="btn primary" type="submit">Szűrés</button></div>
+</form>
+
+<div class="card" style="padding:0">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Név</th><th>Felhasználónév</th><th>Szerepkör</th><th>Állapot</th><th></th></tr></thead>
+      <tbody>
+      {% for u in page %}
+        <tr>
+          <td>{{ u.display_name }}</td>
+          <td class="mono small">{{ u.username }}</td>
+          <td><span class="badge">{{ u.get_role_display }}</span></td>
+          <td>
+            {% if u.is_active %}<span class="badge ok">aktív</span>{% else %}<span class="badge bad">letiltva</span>{% endif %}
+            {% if u.extra_capabilities or u.revoked_capabilities %}<span class="badge info">egyedi jogosultság</span>{% endif %}
+          </td>
+          <td class="actions">
+            <a class="btn small" href="{% url 'accounts:user_edit' user_id=u.pk %}">Jogosultságok</a>
+            <form method="post" action="{% url 'accounts:user_toggle_active' user_id=u.pk %}"
+                  data-confirm="Biztosan {% if u.is_active %}letiltod{% else %}újra engedélyezed{% endif %} ezt a fiókot?">
+              {% csrf_token %}
+              <button class="btn small {% if u.is_active %}danger{% endif %}" type="submit">
+                {% if u.is_active %}Letiltás{% else %}Engedélyezés{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}<tr><td colspan="5" class="empty">Nincs találat.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

@@ -182,6 +182,29 @@ difference.
 Explicitly tested: student ↛ student B, teacher ↛ other groups, porter ↛ edit
 presence, teacher ↛ management-only actions, management ↛ `DELETE_ALL_DATA`.
 
+### Privilege management has the same admin/management ceiling as everywhere else
+
+Admin and management can both edit any account's role and per-capability
+overrides at **Adatkezelés → Felhasználók** (`apps/accounts/selectors.py`,
+`services.py`) — `MANAGE_USERS` sits on the management role now, not just
+admin's `ALL_CAPABILITIES`. The line drawn everywhere else in this app (spec
+§3.2: "management should not automatically receive system-owner permissions")
+applies here too, enforced the same way as `student_queryset_for_user` scopes
+students:
+
+- `users_manageable_by(actor)` — admin manages everyone, including other
+  admins and themselves; management manages everyone *except* the admin tier
+  and except themselves (self-edit stays out of this screen, so a mistake here
+  can't self-lock the account making it — an admin can always fix it).
+- `assignable_roles_for(actor)` — the Admin role itself is only assignable by
+  an admin; management can promote a teacher to management, but never to
+  admin.
+- `DELETE_ALL_DATA` cannot be handed out as a one-off grant through this
+  screen by anyone, admin included — it only ever comes from the Admin role.
+
+Both checks run at the service layer, not just in the view, and every change
+is audited with the before/after capability sets.
+
 ### Concurrency on inspections (spec §18)
 
 The legacy timestamp check was replaced with real locking. Every state change
@@ -324,7 +347,7 @@ an unprivileged user. `.env` is gitignored; no secret has a usable default.
 
 ## Tests
 
-161 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
+189 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
 constraints):
 
 ```bash

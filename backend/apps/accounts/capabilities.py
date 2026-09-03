@@ -160,6 +160,7 @@ _MANAGEMENT = frozenset(
         Capability.IMPORT_DATA,
         Capability.EXPORT_DATA,
         Capability.VIEW_AUDIT_LOG,
+        Capability.MANAGE_USERS,
     }
 )
 

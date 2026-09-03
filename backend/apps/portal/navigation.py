@@ -99,7 +99,9 @@ NAVIGATION = [
     NavItem(
         "Adatkezelés",
         "rooms:list",
-        capabilities=(Capability.MANAGE_DATA,),
+        # OR'd so the section still shows for a user who only holds
+        # MANAGE_USERS (e.g. via a one-off grant) without MANAGE_DATA too.
+        capabilities=(Capability.MANAGE_DATA, Capability.MANAGE_USERS),
         icon="database",
         children=[
             NavItem("Szobák", "rooms:list", (Capability.VIEW_ROOMS,)),
@@ -107,6 +109,7 @@ NAVIGATION = [
             NavItem("Naptár", "dormcalendar:index", (Capability.MANAGE_CALENDAR,)),
             NavItem("Modulok", "core:modules", (Capability.MANAGE_MODULES,)),
             NavItem("Tanévek", "core:school_years", (Capability.MANAGE_SETTINGS,)),
+            NavItem("Felhasználók", "accounts:user_list", (Capability.MANAGE_USERS,)),
         ],
     ),
     NavItem(

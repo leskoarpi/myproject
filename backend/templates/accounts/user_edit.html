@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ target.display_name }} — jogosultságok{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ target.display_name }}</h1>
+    <p class="subtitle">{{ target.username }} · {{ target.email }}</p></div>
+  <a class="btn" href="{% url 'accounts:user_list' %}">Vissza</a>
+</div>
+
+<div class="notice">
+  A szerepkör adja az alapértelmezett jogosultságokat. Ezen a listán csak az
+  <strong>eltéréseket</strong> állítod be: „Kényszerítve engedélyezve” a szerepkörön felül
+  ad egy jogot, „Kényszerítve letiltva” pedig elvesz egyet a szerepkör alapértelmezéséből.
+  Ha mindkettőt bejelölöd egy sorban, a letiltás érvényesül.
+</div>
+
+<form method="post">
+  {% csrf_token %}
+
+  <div class="card" style="max-width:420px">
+    <h2>Szerepkör</h2>
+    <div class="field">
+      <label for="role">Jelenlegi szerepkör</label>
+      <select id="role" name="role">
+        {% for value, label in role_choices %}
+          <option value="{{ value }}" {% if value == target.role %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Jogosultságok</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Jogosultság</th>
+            <th>Szerepkörből</th>
+            <th>Kényszerítve engedélyezve</th>
+            <th>Kényszerítve letiltva</th>
+            <th>Eredmény</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in capability_rows %}
+          <tr>
+            <td class="small">{{ row.label }}</td>
+            <td>{% if row.from_role %}<span class="badge ok">igen</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td>
+              <input type="checkbox" name="extra" value="{{ row.code }}" id="extra-{{ row.code }}"
+                     {% if row.is_extra %}checked{% endif %}>
+            </td>
+            <td>
+              <input type="checkbox" name="revoked" value="{{ row.code }}" id="revoked-{{ row.code }}"
+                     {% if row.is_revoked %}checked{% endif %}>
+            </td>
+            <td>
+              {% if row.effective %}<span class="badge ok">van</span>{% else %}<span class="badge bad">nincs</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" type="submit">Mentés</button>
+  </div>
+</form>
+
+<div class="card">
+  <h2>Jelenleg érvényes jogosultságok</h2>
+  <p>{% for code, label in effective_capabilities %}<span class="badge">{{ label }}</span> {% empty %}<span class="muted">Nincs jogosultsága.</span>{% endfor %}</p>
+</div>
+{% endblock %}
