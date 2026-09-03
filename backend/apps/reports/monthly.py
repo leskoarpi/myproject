@@ -1,15 +1,19 @@
 """Monthly worksheet reports.
 
-Two grids, both shaped like the paper sheets the dormitory already keeps:
+Two grids, both shaped like the paper sheets the dormitory already keeps, and
+both **split into one section per floor** because that is how they are handed
+out — a floor's teacher gets their floor's sheet:
 
-* **Szobarend** - one row per room, one column per day of the month, the
-  tidiness rating in the cell, with a monthly average.
-* **Esti jelenlét** - one row per student, one column per day, the evening
-  check result as a short code.
+* **Szobarend** - one row per room, one column per day, the tidiness mark in
+  the cell. Room numbers and marks, nothing else.
+* **Esti jelenlét** - one row per student, one column per day, ``+`` when the
+  student was in at the time of the check and ``-`` when they were not. The
+  room number is printed once per room rather than repeated on every resident.
 
-Both render as a printable A4-landscape table and download as a real .xlsx
-worksheet. The rows are assembled here, once, and the HTML view and the Excel
-writer both consume the same structure (spec section 69).
+Both render as a printable A4-landscape page (one table per floor) and download
+as an .xlsx workbook (one worksheet per floor). The rows are assembled here,
+once, and the HTML view and the Excel writer both consume the same structure
+(spec section 69).
 """
 
 import calendar
@@ -21,17 +25,32 @@ from django.db.models import Avg, Count, Q
 from apps.inspections.models import EveningCheckResult, RoomCheck
 from apps.rooms.models import Room
 
+PRESENT = "+"
+ABSENT = "-"
+NO_ROOM_LABEL = "Nincs szoba"
+
+
+@dataclass
+class GridSection:
+    """One floor's worth of rows."""
+
+    label: str
+    rows: list = field(default_factory=list)
+
+    @property
+    def slug(self):
+        return self.label.replace(".", "").replace(" ", "-").lower()
+
 
 @dataclass
 class MonthlyGrid:
-    """A worksheet-shaped report: labelled rows against days of a month."""
+    """A worksheet-shaped report: labelled rows against the days of a month."""
 
     title: str
     year: int
     month: int
     row_headers: list  # column titles for the leading label columns
-    rows: list = field(default_factory=list)
-    summary_headers: list = field(default_factory=list)
+    sections: list = field(default_factory=list)
     legend: list = field(default_factory=list)
 
     @property
@@ -54,8 +73,13 @@ class MonthlyGrid:
     def filename_stem(self):
         return f"{self.title.lower().replace(' ', '-')}-{self.year}-{self.month:02d}"
 
-    def cell(self, row, day):
-        return row["cells"].get(day, "")
+    @property
+    def all_rows(self):
+        return [row for section in self.sections for row in section.rows]
+
+    @property
+    def is_empty(self):
+        return not self.all_rows
 
 
 def month_bounds(year, month):
@@ -63,8 +87,16 @@ def month_bounds(year, month):
     return dt.date(year, month, 1), dt.date(year, month, last)
 
 
+def _floor_label(floor):
+    return NO_ROOM_LABEL if floor is None else f"{floor}. emelet"
+
+
 def room_tidiness_grid(year, month):
-    """Room tidiness ratings for one month, one column per day."""
+    """Room tidiness marks for one month, one section per floor.
+
+    Room numbers and marks only - no floor column (the section says it) and no
+    averages.
+    """
     start, end = month_bounds(year, month)
 
     checks = (
@@ -79,38 +111,31 @@ def room_tidiness_grid(year, month):
 
     by_room = {}
     for check in checks:
-        entry = by_room.setdefault(check.room_id, {})
         # A room can be re-checked on the same day; the latest value wins.
-        entry[check.session.date.day] = check.rating
+        by_room.setdefault(check.room_id, {})[check.session.date.day] = check.rating
 
-    rows = []
+    sections = {}
     for room in Room.objects.active().order_by("floor", "number"):
-        cells = by_room.get(room.pk, {})
-        values = [v for v in cells.values() if v is not None]
-        rows.append(
-            {
-                "labels": [room.number, f"{room.floor}."],
-                "cells": cells,
-                "summary": [
-                    round(sum(values) / len(values), 2) if values else "",
-                    len(values),
-                ],
-            }
-        )
+        section = sections.setdefault(room.floor, GridSection(label=_floor_label(room.floor)))
+        section.rows.append({"labels": [room.number], "cells": by_room.get(room.pk, {})})
 
     return MonthlyGrid(
         title="Szobarend",
         year=year,
         month=month,
-        row_headers=["Szoba", "Emelet"],
-        rows=rows,
-        summary_headers=["Átlag", "Ellenőrzés"],
-        legend=[("1-5", "szobarend értékelés (5 = kifogástalan)")],
+        row_headers=["Szoba"],
+        sections=[sections[floor] for floor in sorted(sections)],
+        legend=[("1–5", "szobarend értékelés (5 = kifogástalan)")],
     )
 
 
 def evening_presence_grid(year, month):
-    """Evening check results for one month, one column per day."""
+    """Evening presence for one month, one section per floor.
+
+    The cell is ``+`` when the student was in at the moment of that evening's
+    check and ``-`` when they were not; an empty cell means no check happened.
+    Students are grouped by room and the room number is printed once per room.
+    """
     start, end = month_bounds(year, month)
 
     results = (
@@ -118,7 +143,7 @@ def evening_presence_grid(year, month):
             session__calendar_day__date__gte=start,
             session__calendar_day__date__lte=end,
         )
-        .select_related("student", "status", "session__calendar_day", "student__group")
+        .select_related("student", "status", "session__calendar_day")
         .order_by("student__full_name", "session__calendar_day__date")
     )
 
@@ -126,41 +151,47 @@ def evening_presence_grid(year, month):
     by_student = {}
     for result in results:
         students.setdefault(result.student_id, result.student)
-        code = result.status.short_label or result.status.label[:2]
         by_student.setdefault(result.student_id, {})[
             result.session.calendar_day.date.day
-        ] = code
+        ] = PRESENT if result.status.counts_as_inside else ABSENT
 
-    rows = []
-    seen_codes = {}
-    for student_id, student in sorted(students.items(), key=lambda kv: kv[1].full_name):
-        cells = by_student.get(student_id, {})
-        inside = sum(1 for v in cells.values() if v == "B")
-        rows.append(
-            {
-                "labels": [
-                    student.current_room.number if student.current_room else "",
-                    student.full_name,
-                    student.group.code if student.group else "",
-                ],
-                "cells": cells,
-                "summary": [inside, len(cells) - inside, len(cells)],
-            }
-        )
+    # Group by where the student lives now: the sheet is read as a floor roster.
+    # Someone who has since moved out lands in a trailing "no room" section.
+    grouped = {}
+    for student in students.values():
+        room = student.current_room
+        floor = room.floor if room else None
+        grouped.setdefault(floor, {}).setdefault(
+            room.number if room else "", []
+        ).append(student)
 
-    from apps.presence.models import StatusType
-
-    for status in StatusType.objects.active():
-        seen_codes[status.short_label or status.label[:2]] = status.label
+    sections = []
+    for floor in sorted(grouped, key=lambda f: (f is None, f)):
+        section = GridSection(label=_floor_label(floor))
+        for room_number in sorted(grouped[floor]):
+            residents = sorted(grouped[floor][room_number], key=lambda s: s.full_name)
+            for index, student in enumerate(residents):
+                section.rows.append(
+                    {
+                        # Print the room once, on its first resident.
+                        "labels": [room_number if index == 0 else "", student.full_name],
+                        "cells": by_student.get(student.pk, {}),
+                        "starts_room": index == 0,
+                    }
+                )
+        sections.append(section)
 
     return MonthlyGrid(
         title="Esti jelenlét",
         year=year,
         month=month,
-        row_headers=["Szoba", "Név", "Csoport"],
-        rows=rows,
-        summary_headers=["Bent", "Egyéb", "Ellenőrizve"],
-        legend=sorted(seen_codes.items()),
+        row_headers=["Szoba", "Név"],
+        sections=sections,
+        legend=[
+            (PRESENT, "bent volt az ellenőrzéskor"),
+            (ABSENT, "nem volt bent"),
+            ("", "nem volt ellenőrzés"),
+        ],
     )
 
 
@@ -177,7 +208,7 @@ def build_grid(name, year, month):
 
 
 def room_tidiness_summary(year, month):
-    """Floor-level averages, for the report header."""
+    """Floor-level averages, for the reports index (not for the sheet)."""
     start, end = month_bounds(year, month)
     return list(
         RoomCheck.objects.filter(

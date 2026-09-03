@@ -313,8 +313,12 @@ label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); 
 tr.saved > td { background: var(--ok-soft); transition: background .6s ease; }
 
 /* ---------- Monthly worksheet ----------
-   A spreadsheet-shaped grid: labels down the side, days across the top.
-   Scrolls horizontally on screen and fits A4 landscape when printed. */
+   A spreadsheet-shaped grid: labels down the side, days across the top, one
+   table per floor. Scrolls horizontally on screen; each floor starts a new
+   page when printed. */
+.sheet-section { margin-bottom: 20px; }
+.sheet-heading { font-size: 15px; margin: 0 0 8px; }
+
 table.sheet { font-size: 12px; }
 table.sheet th, table.sheet td { padding: 4px 6px; }
 table.sheet th.day, table.sheet td.day {
@@ -334,10 +338,15 @@ table.sheet .sticky-label {
 table.sheet thead .sticky-label { background: var(--surface-2); z-index: 3; }
 table.sheet tbody tr:hover .sticky-label { background: var(--surface-2); }
 
-.print-title { display: none; }
+/* The room number is printed once per room; this rule marks where the next
+   room starts, in place of the number the sheet no longer repeats. */
+table.sheet tr.room-start > td { border-top: 1px solid var(--muted); }
 
 @media print {
-  .print-title { display: block; margin: 0 0 6px; font-size: 14px; }
+  .sheet-heading { font-size: 12px; margin: 0 0 4px; }
+  .sheet-section { page-break-after: always; margin-bottom: 0; }
+  .sheet-section:last-of-type { page-break-after: auto; }
+  .sheet-legend { page-break-before: avoid; }
   table.sheet { font-size: 8px; }
   table.sheet th, table.sheet td { padding: 2px 3px; }
   table.sheet th.day, table.sheet td.day { width: auto; min-width: 0; }
@@ -346,4 +355,5 @@ table.sheet tbody tr:hover .sticky-label { background: var(--surface-2); }
     background: #eceff3 !important;
     -webkit-print-color-adjust: exact;
   }
+  table.sheet tr.room-start > td { border-top: 1px solid #666; }
 }

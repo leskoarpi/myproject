@@ -3,7 +3,8 @@
 {% block title %}{{ grid.title }} — {{ grid.period_label }}{% endblock %}
 {% block content %}
 <div class="page-head no-print">
-  <div><h1>{{ grid.title }}</h1><p class="subtitle">{{ grid.period_label }} · A4 fekvő munkalap</p></div>
+  <div><h1>{{ grid.title }}</h1>
+    <p class="subtitle">{{ grid.period_label }} · emeletenként · A4 fekvő munkalap</p></div>
   <div class="actions">
     <a class="btn" href="?year={{ prev_year }}&month={{ prev_month }}">← Előző hónap</a>
     <a class="btn" href="?year={{ next_year }}&month={{ next_month }}">Következő hónap →</a>
@@ -15,42 +16,45 @@
   </div>
 </div>
 
-<h2 class="print-title">{{ grid.title }} — {{ grid.period_label }}</h2>
-
-<div class="card" style="padding:0">
-  <div class="table-wrap">
-    <table class="sheet">
-      <thead>
-        <tr>
-          {% for header in grid.row_headers %}<th class="sticky-label">{{ header }}</th>{% endfor %}
-          {% for day in grid.days %}
-            <th class="day {% if day in grid.weekend_days %}weekend{% endif %}">{{ day }}</th>
+{% for section in grid.sections %}
+  <section class="sheet-section">
+    <h2 class="sheet-heading">{{ grid.title }} — {{ section.label }} — {{ grid.period_label }}</h2>
+    <div class="card" style="padding:0">
+      <div class="table-wrap">
+        <table class="sheet">
+          <thead>
+            <tr>
+              {% for header in grid.row_headers %}<th class="sticky-label">{{ header }}</th>{% endfor %}
+              {% for day in grid.days %}
+                <th class="day {% if day in grid.weekend_days %}weekend{% endif %}">{{ day }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+          {% for row in section.rows %}
+            <tr {% if row.starts_room and not forloop.first %}class="room-start"{% endif %}>
+              {% for label in row.labels %}<td class="sticky-label">{{ label }}</td>{% endfor %}
+              {% for day in grid.days %}
+                <td class="day {% if day in grid.weekend_days %}weekend{% endif %}">{{ row.cells|dict_get:day }}</td>
+              {% endfor %}
+            </tr>
+          {% empty %}
+            <tr><td class="empty" colspan="40">Ezen az emeleten nincs rögzített adat.</td></tr>
           {% endfor %}
-          {% for header in grid.summary_headers %}<th class="num">{{ header }}</th>{% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-      {% for row in grid.rows %}
-        <tr>
-          {% for label in row.labels %}<td class="sticky-label">{{ label }}</td>{% endfor %}
-          {% for day in grid.days %}
-            <td class="day {% if day in grid.weekend_days %}weekend{% endif %}">{{ row.cells|dict_get:day }}</td>
-          {% endfor %}
-          {% for value in row.summary %}<td class="num"><strong>{{ value }}</strong></td>{% endfor %}
-        </tr>
-      {% empty %}
-        <tr><td class="empty" colspan="40">Ebben a hónapban nincs rögzített adat.</td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+{% empty %}
+  <div class="card"><p class="empty">Ebben a hónapban nincs rögzített adat.</p></div>
+{% endfor %}
 
 {% if grid.legend %}
-<div class="card">
+<div class="card sheet-legend">
   <h2 style="font-size:14px">Jelmagyarázat</h2>
   <p class="small">
-    {% for code, meaning in grid.legend %}<span class="badge">{{ code }}</span> {{ meaning }}{% if not forloop.last %} · {% endif %}{% endfor %}
+    {% for code, meaning in grid.legend %}<span class="badge">{{ code|default:"üres" }}</span> {{ meaning }}{% if not forloop.last %} · {% endif %}{% endfor %}
   </p>
 </div>
 {% endif %}

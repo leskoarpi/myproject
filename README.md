@@ -287,7 +287,7 @@ an unprivileged user. `.env` is gitignored; no secret has a usable default.
 
 ## Tests
 
-129 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
+137 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
 constraints):
 
 ```bash
@@ -296,7 +296,8 @@ docker compose exec web pytest
 
 - **Unit** — presence transitions and the self-service switch, weekend date
   arithmetic, room capacity, assignment overlap, state transitions, pass-rule
-  transitions, monthly grid shape (month lengths, leap years, weekend columns)
+  transitions, monthly grid shape (month lengths, leap years, weekend columns,
+  floor sections, room grouping)
 - **Integration** — student self-service over HTTP (both sides of the switch),
   evening inspection, the merged morning round, weekend approval and nightly
   checks, pass-rule changes, change-request approval, .xlsx generation read
@@ -311,20 +312,30 @@ docker compose exec web pytest
 ## Reports
 
 The primary reports are two **monthly worksheets**, shaped like the paper
-sheets the dormitory already keeps — one row per room or student, one column
-per day of the month:
+sheets the dormitory already keeps. Both are **split by floor** — a floor's
+teacher gets their floor's sheet — with one row per room or student and one
+column per day of the month:
 
 | Report | Rows | Cells |
 | --- | --- | --- |
-| Szobarend | rooms | tidiness rating 1–5, plus a monthly average and check count |
-| Esti jelenlét | students | evening check result as a short code, plus inside/other/checked totals |
+| Szobarend | rooms | the tidiness mark, 1–5 |
+| Esti jelenlét | students, grouped by room | `+` if the student was in at the moment of the check, `-` if not, blank if there was no check |
 
-Each renders as a print-optimised A4-landscape page (weekend columns shaded,
-labels frozen to the left while the days scroll) and downloads as a real
-`.xlsx` via openpyxl — frozen header, repeated print titles, fit-to-width
-landscape — so it opens directly in Excel, LibreOffice or Google Sheets. Both
-outputs are built from the same `MonthlyGrid`, so the printed page and the
-spreadsheet can never disagree. Exports are audited.
+Deliberately spare: the tidiness sheet carries room numbers and marks and
+nothing else (no floor column — the section heading says it, no averages), and
+the presence sheet has no inside/other/checked totals. On the presence sheet
+the room number is printed once per room instead of on every resident, with a
+rule marking where the next room starts.
+
+Each renders as a print-optimised A4-landscape page — one table per floor, each
+floor starting a new page, weekend columns shaded, labels frozen while the days
+scroll — and downloads as a real `.xlsx` via openpyxl, **one worksheet per
+floor**, with a frozen header and repeated print titles. Both outputs are built
+from the same `MonthlyGrid`, so the printed page and the spreadsheet can never
+disagree. Exports are audited.
+
+A student who has moved out mid-month still has results, so they land in a
+trailing `Nincs szoba` section rather than vanishing from the sheet.
 
 The older ad-hoc reports (presence, occupancy, room checks, pass rules and
 their histories) remain available as CSV and JSON underneath.

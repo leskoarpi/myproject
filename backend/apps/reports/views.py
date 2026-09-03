@@ -129,7 +129,11 @@ def monthly_xlsx(request, name):
         action=AuditAction.EXPORT,
         target_type="reports",
         target_repr=f"{grid.title} {grid.period_label}",
-        new_value={"rows": len(grid.rows), "format": "xlsx"},
+        new_value={
+            "rows": len(grid.all_rows),
+            "sheets": [section.label for section in grid.sections],
+            "format": "xlsx",
+        },
     )
     response = HttpResponse(
         payload,
