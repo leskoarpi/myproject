@@ -19,7 +19,13 @@ RUN pip install --no-cache-dir -r requirements.txt \
 # Run as an unprivileged user.
 RUN useradd --create-home --uid 1000 app
 COPY --chown=app:app . .
-RUN mkdir -p /app/staticfiles /app/media && chown -R app:app /app/staticfiles /app/media
+# These three are named-volume mount points. Docker seeds a fresh volume from
+# the image directory underneath it, ownership included, so each one has to
+# exist and belong to "app" here - otherwise the volume arrives owned by root
+# and the unprivileged process cannot write to it. /var/lib/celery holds Beat's
+# schedule, which must not live in /app: that is the git checkout.
+RUN mkdir -p /app/staticfiles /app/media /var/lib/celery \
+    && chown -R app:app /app/staticfiles /app/media /var/lib/celery
 USER app
 
 EXPOSE 8000

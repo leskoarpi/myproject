@@ -15,3 +15,7 @@ htmlcov/
 
 # Database snapshots taken by the restore-point workflow
 backups/
+
+# Celery Beat used to write its schedule here; it now lives in a volume.
+backend/celerybeat-schedule
+backend/celerybeat.pid

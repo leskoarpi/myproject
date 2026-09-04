@@ -49,6 +49,10 @@ Run the tests:
 docker compose exec web pytest
 ```
 
+To put it on a server, see [DOKPLOY.md](DOKPLOY.md) — the repository ships
+`docker-compose.dokploy.yml` for deployment through Dokploy, and the setup is
+UI work rather than SSH.
+
 ---
 
 ## Stack

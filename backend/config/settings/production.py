@@ -21,8 +21,16 @@ if not env("POSTGRES_PASSWORD"):
 # TLS is terminated at the reverse proxy; trust its forwarding header.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", True)
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+
+# Secure cookies are the right default and the only correct setting once TLS
+# is in front - which, behind Dokploy's Traefik with a domain attached, it is
+# from the first deploy. The switch exists for the gap before that: reached
+# over plain http, a browser withholds the session and CSRF cookies, so
+# nobody can log in and it looks like a rejected password rather than a
+# setting. Flip it in the Environment tab, and back on with the certificate.
+SECURE_COOKIES = env_bool("DJANGO_SECURE_COOKIES", True)
+SESSION_COOKIE_SECURE = SECURE_COOKIES
+CSRF_COOKIE_SECURE = SECURE_COOKIES
 SECURE_HSTS_SECONDS = env_int("DJANGO_SECURE_HSTS_SECONDS", 60 * 60 * 24 * 365)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
