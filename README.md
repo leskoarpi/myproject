@@ -393,7 +393,7 @@ an unprivileged user. `.env` is gitignored; no secret has a usable default.
 
 ## Tests
 
-232 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
+241 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
 constraints):
 
 ```bash
@@ -477,6 +477,40 @@ widen to a sidebar layout on tablets and desktops; inspection entry is a
 keyboard/tap-friendly one-row-per-student table with progress feedback. The
 weekend roster prints as A4 landscape and downloads as a real PDF (reportlab),
 falling back to the print view if reportlab is unavailable.
+
+### One stylesheet, no framework, no webfont (Sept 2026 rework)
+
+`static/css/app.css` is the whole design system: colour, type, spacing, depth
+and shape are CSS custom properties on `:root`, and every component reads
+them. Nothing in `templates/` hard-codes a colour, so a palette change is a
+token change. There is no CSS framework and no hosted font — the dormitory
+runs this on its own network, so every byte is served locally and nothing
+phones home.
+
+What that buys, concretely:
+
+- **Dark mode is free.** `@media (prefers-color-scheme: dark)` swaps the token
+  values and nothing else; no component defines a colour of its own, so the
+  two themes cannot drift apart. It follows the operating system only —
+  there is no in-app toggle.
+- **Paper is always light.** The print block re-declares the light tokens,
+  because `prefers-color-scheme` still reports "dark" while printing from a
+  dark screen and anything token-drawn (the worksheet's sticky room labels)
+  would otherwise print near-black.
+- **The sidebar says where you are.** `build_navigation(user, current_path=…)`
+  marks the longest-prefix match, so `/students/41/` lights "Diákok" and not
+  the dashboard at `/`. A section pointing at its own first child marks the
+  *child* as the current page and the parent only as "in this section", so
+  two rows never read as two current pages. Marking is presentation only and
+  never widens what the tree contains.
+- **Icons are an inline SVG sprite** (`templates/_icons.html`), keyed by the
+  `NavItem.icon` names that already existed in `navigation.py` but had never
+  been rendered.
+
+On phones the sidebar is a drawer that lifts out of the flow and sits above
+its own scrim; `app.js` sets the drawer, the scrim and `aria-expanded`
+together, so "is the menu open" has one source of truth. Escape and a tap on
+the scrim both close it.
 
 ---
 

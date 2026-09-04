@@ -3,8 +3,9 @@
 {% block anon_content %}
 <div class="auth-page">
   <div class="auth-logo">
+    <div class="brand-mark" aria-hidden="true">DK</div>
     <div class="name">Deák Koli</div>
-    <div class="muted small">Kollégiumi rendszer</div>
+    <div class="tagline">Kollégiumi rendszer</div>
   </div>
   <div class="card">
     <form method="post">
@@ -20,9 +21,9 @@
         <label for="{{ form.password.id_for_label }}">Jelszó</label>
         {{ form.password }}
       </div>
-      <button class="btn primary" style="width:100%" type="submit">Belépés</button>
+      <button class="btn primary" type="submit">Belépés</button>
     </form>
-    <p class="small muted" style="margin-top:14px;text-align:center">
+    <p class="auth-foot">
       <a href="{% url 'accounts:password_reset' %}">Elfelejtett jelszó</a>
     </p>
   </div>

@@ -17,14 +17,34 @@
     return match ? decodeURIComponent(match[1]) : "";
   }
 
-  /* ---- mobile drawer ---- */
-  document.addEventListener("click", function (event) {
-    var toggle = event.target.closest("[data-menu-toggle]");
-    if (!toggle) return;
+  /* ---- mobile drawer ----
+   * The drawer, its scrim and the toggle's aria-expanded are set together, so
+   * there is never a scrim without a drawer behind it. */
+  function setDrawer(open) {
     var sidebar = document.getElementById("sidebar");
     if (!sidebar) return;
-    var open = sidebar.classList.toggle("open");
-    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    var toggle = document.querySelector("[data-menu-toggle]");
+    var scrim = document.querySelector("[data-nav-scrim]");
+
+    sidebar.classList.toggle("open", open);
+    if (scrim) scrim.hidden = !open;
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  document.addEventListener("click", function (event) {
+    if (event.target.closest("[data-menu-toggle]")) {
+      var sidebar = document.getElementById("sidebar");
+      setDrawer(!(sidebar && sidebar.classList.contains("open")));
+    } else if (event.target.closest("[data-nav-scrim]")) {
+      setDrawer(false);
+    }
+  });
+
+  /* Escape closes the drawer, matching the confirmation dialog below. */
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    var sidebar = document.getElementById("sidebar");
+    if (sidebar && sidebar.classList.contains("open")) setDrawer(false);
   });
 
   /* ---- confirmation dialog ----

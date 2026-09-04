@@ -156,7 +156,8 @@ STUDENT_NAVIGATION = [
         module=ModuleKey.PASS_RULES,
         icon="key",
     ),
-    NavItem("Profil", "accounts:profile", icon="user"),
+    # Profil and Jelszóváltás are not listed here: base.html appends the
+    # account links to every navigation, so a copy here shows up twice.
 ]
 
 
@@ -168,8 +169,27 @@ def _visible(item, user, enabled_modules):
     return any(user.has_capability(c) for c in item.capabilities)
 
 
-def build_navigation(user):
-    """Return the nav tree this user may actually use."""
+def _match_score(url, current_path):
+    """How well ``url`` describes ``current_path``; 0 means it does not.
+
+    Longest prefix wins, so /students/41/ marks "Diákok" rather than the
+    dashboard. The root path is matched exactly, since every path starts
+    with "/" and it would otherwise always win.
+    """
+    if not current_path or not url:
+        return 0
+    if url == "/":
+        return 1 if current_path == "/" else 0
+    return len(url) if current_path.startswith(url) else 0
+
+
+def build_navigation(user, current_path=""):
+    """Return the nav tree this user may actually use.
+
+    ``current_path`` marks the entry the user is looking at, so the sidebar
+    can show where they are; it is presentation only and never widens what
+    the tree contains.
+    """
     if not user or not user.is_authenticated:
         return []
 
@@ -194,4 +214,29 @@ def build_navigation(user):
                 "children": [{"label": c.label, "url": c.url()} for c in children],
             }
         )
+
+    _mark_active(nav, current_path)
     return nav
+
+
+def _mark_active(nav, current_path):
+    """Flag the single best match in the tree, parent and child alike."""
+    best = (0, None, None)  # score, entry, parent
+    for entry in nav:
+        # Children are weighed first so that a section pointing at its own
+        # first child (the usual case) marks the child as the current page
+        # and the parent merely as the section containing it.
+        candidates = [(c, entry) for c in entry["children"]] + [(entry, None)]
+        for candidate, parent in candidates:
+            score = _match_score(candidate["url"], current_path)
+            if score > best[0]:
+                best = (score, candidate, parent)
+
+    _, entry, parent = best
+    if entry is not None:
+        entry["active"] = True
+        # A matched child marks its section header too, but as "in this
+        # section" rather than "this is the page" - two fully highlighted
+        # rows would read as two current pages.
+        if parent is not None:
+            parent["in_section"] = True

@@ -11,7 +11,7 @@ def navigation(request):
     known = set(SystemModule.objects.values_list("key", flat=True))
     enabled = SystemModule.enabled_keys() | (set(ModuleKey.values) - known)
     return {
-        "nav_items": build_navigation(user),
+        "nav_items": build_navigation(user, current_path=request.path),
         "enabled_modules": enabled,
         "site_name": "Deák Koli",
     }

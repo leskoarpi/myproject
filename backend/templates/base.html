@@ -3,40 +3,78 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#1f4e79">
   <title>{% block title %}Deák Koli{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <script src="{% static 'js/app.js' %}" defer></script>
 </head>
 <body>
+{% include "_icons.html" %}
 {% if user.is_authenticated %}
+<a class="skip-link" href="#main">Ugrás a tartalomra</a>
+
 <header class="topbar">
-  <button class="menu-toggle" type="button" aria-label="Menü" aria-expanded="false" data-menu-toggle>☰</button>
-  <a class="brand" href="{% url 'portal:dashboard' %}">Deák Koli</a>
+  <button class="menu-toggle" type="button" aria-label="Menü" aria-expanded="false" aria-controls="sidebar" data-menu-toggle>
+    <svg class="ico" aria-hidden="true"><use href="#i-menu"></use></svg>
+  </button>
+  <a class="brand" href="{% url 'portal:dashboard' %}">
+    <span class="brand-mark" aria-hidden="true">DK</span>
+    <span>Deák Koli</span>
+  </a>
   <span class="spacer"></span>
-  <span class="who">{{ user.display_name }}</span>
+  <span class="who">
+    <span class="who-avatar" aria-hidden="true">{{ user.display_name|first|upper }}</span>
+    <span class="who-name">{{ user.display_name }}</span>
+  </span>
   <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
     <button class="btn small" type="submit">Kilépés</button>
   </form>
 </header>
 
+<div class="nav-scrim" data-nav-scrim hidden></div>
+
 <div class="shell">
-  <nav class="sidebar" id="sidebar">
+  <nav class="sidebar" id="sidebar" aria-label="Fő navigáció">
     {% for item in nav_items %}
       <div class="group">
-        <a href="{{ item.url }}">{{ item.label }}</a>
+        <a href="{{ item.url }}"
+           class="{% if item.active %}active{% endif %}{% if item.in_section %} in-section{% endif %}"
+           {% if item.active %}aria-current="page"{% endif %}>
+          {% if item.icon %}<svg class="ico" aria-hidden="true"><use href="#i-{{ item.icon }}"></use></svg>{% endif %}
+          <span>{{ item.label }}</span>
+        </a>
         {% if item.children %}
           <div class="sub">
-            {% for child in item.children %}<a href="{{ child.url }}">{{ child.label }}</a>{% endfor %}
+            {% for child in item.children %}
+              <a href="{{ child.url }}" class="{% if child.active %}active{% endif %}"
+                 {% if child.active %}aria-current="page"{% endif %}>{{ child.label }}</a>
+            {% endfor %}
           </div>
         {% endif %}
       </div>
     {% endfor %}
-    <div class="group"><a href="{% url 'accounts:profile' %}">Profil</a></div>
-    <div class="group"><a href="{% url 'accounts:password_change' %}">Jelszóváltás</a></div>
+    {% comment %}
+      The account links close every navigation, staff and student alike, so
+      navigation.py deliberately leaves them out of both trees.
+    {% endcomment %}
+    {% url 'accounts:profile' as profile_url %}
+    {% url 'accounts:password_change' as password_url %}
+    <div class="group nav-foot">
+      <a href="{{ profile_url }}" class="{% if request.path == profile_url %}active{% endif %}"
+         {% if request.path == profile_url %}aria-current="page"{% endif %}>
+        <svg class="ico" aria-hidden="true"><use href="#i-user"></use></svg><span>Profil</span>
+      </a>
+    </div>
+    <div class="group">
+      <a href="{{ password_url }}" class="{% if request.path == password_url %}active{% endif %}"
+         {% if request.path == password_url %}aria-current="page"{% endif %}>
+        <svg class="ico" aria-hidden="true"><use href="#i-key"></use></svg><span>Jelszóváltás</span>
+      </a>
+    </div>
   </nav>
 
-  <main>
+  <main id="main">
     {% if messages %}
       <div class="messages">
         {% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}

@@ -1,4 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Hiba{% endblock %}
-{% block content %}<div class="card"><h2>500 — Váratlan hiba</h2><p class="muted">A hibát naplóztuk. Próbáld újra később.</p></div>{% endblock %}
-{% block anon_content %}<div class="auth-page"><div class="card"><h2>500 — Váratlan hiba</h2></div></div>{% endblock %}
+
+{% block content %}
+<div class="error-state">
+  <div class="error-code">500</div>
+  <h1>Váratlan hiba</h1>
+  <p class="subtitle">A hibát naplóztuk. Próbáld újra később, és ha megismétlődik, szólj a rendszergazdának.</p>
+  <div class="actions">
+    <a class="btn primary" href="{% url 'portal:dashboard' %}">Vissza az áttekintéshez</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block anon_content %}
+<div class="error-state">
+  <div class="error-code">500</div>
+  <h1>Váratlan hiba</h1>
+  <p class="subtitle">A hibát naplóztuk. Próbáld újra később.</p>
+</div>
+{% endblock %}
