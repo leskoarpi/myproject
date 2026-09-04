@@ -235,6 +235,22 @@ clears "who did this" attribution on that history without touching the
 history itself; a `Teacher` profile cascades away with its account, since it
 carries no history of its own.
 
+**Students get their own, wider deletion path** (`DELETE_STUDENTS`,
+`apps/students/services.py::delete_student_permanently`, at the student's own
+"Fiók és előzmények végleges törlése") rather than being routed into
+`delete_user_permanently` above — by design that one refuses every student
+account outright. This one is stronger, not weaker: because a student's
+`StudentProfile` is what nearly everything else PROTECTs against, deleting it
+for real means clearing that history by hand first, in dependency order,
+inside one transaction — evening check results, room-check results, presence
+events, room assignments, pass-rule history — before the profile and the
+login can go. Everything already `CASCADE` from the profile (current
+presence, the pass rule itself, change requests, weekend stays and their
+checks) needs no such handling. Same ceiling and the same typed-username
+confirmation as `DELETE_USERS`: admin-only, never grantable as a one-off.
+Use this only when the paper trail is the record of truth and the digital
+one is meant to go — `archive_student` remains the reversible default.
+
 ### Concurrency on inspections (spec §18)
 
 The legacy timestamp check was replaced with real locking. Every state change
@@ -377,7 +393,7 @@ an unprivileged user. `.env` is gitignored; no secret has a usable default.
 
 ## Tests
 
-218 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
+232 tests, PostgreSQL-backed (never SQLite — the schema depends on Postgres
 constraints):
 
 ```bash

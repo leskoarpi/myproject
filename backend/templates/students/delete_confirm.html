@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ student.full_name }} — végleges törlés{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Végleges törlés</h1><p class="subtitle">{{ student.full_name }} ({{ student.user.username }})</p></div>
+  <a class="btn" href="{% url 'students:detail' student_id=student.pk %}">Vissza</a>
+</div>
+
+<div class="card" style="border-color: var(--bad); max-width:480px">
+  <h2 style="color: var(--bad)">Ez a művelet nem vonható vissza</h2>
+  <p class="small">
+    A diák fiókja, adatlapja és <strong>minden előzménye</strong> véglegesen
+    törlődik: esti ellenőrzések, szobaellenőrzések, jelenléti napló, szobabeosztások
+    és a kimenő jogosultság előzménye is. Archiválás esetén ezek megmaradnának —
+    itt nem.
+  </p>
+  <ul class="small">
+    <li>Ha csak a diák kiköltözését szeretnéd rögzíteni, archiváld a törlés helyett.</li>
+  </ul>
+
+  <form method="post" data-confirm="Biztosan véglegesen törlöd ezt a diákot és minden előzményét? Ez nem vonható vissza.">
+    {% csrf_token %}
+    <div class="field">
+      <label for="confirmation_username">A megerősítéshez írd be pontosan: <code>{{ student.user.username }}</code></label>
+      <input type="text" id="confirmation_username" name="confirmation_username" required autocomplete="off">
+    </div>
+    <button class="btn danger" type="submit">Végleges törlés</button>
+  </form>
+</div>
+{% endblock %}

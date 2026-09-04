@@ -101,5 +101,13 @@
     </div>
     {% endif %}
   </div>
+
+  {% if can_delete %}
+  <div class="card" style="border-color: var(--bad)">
+    <h2 style="color: var(--bad)">Veszélyes zóna</h2>
+    <p class="small muted">A fiók és minden előzménye véglegesen törölhető. Nem vonható vissza.</p>
+    <a class="btn danger" href="{% url 'students:delete' student_id=student.pk %}">Fiók és előzmények végleges törlése</a>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

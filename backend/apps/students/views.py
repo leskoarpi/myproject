@@ -16,6 +16,7 @@ from apps.rooms.services import assign_student_to_room, end_room_assignment
 from .forms import StudentChangeRequestForm, StudentCreateForm, StudentForm
 from .models import ChangeRequestStatus, StudentChangeRequest
 from .selectors import (
+    can_delete_student,
     can_view_sensitive,
     change_request_queryset_for_user,
     editable_fields_for,
@@ -24,6 +25,7 @@ from .selectors import (
 from .services import (
     approve_student_change_request,
     archive_student,
+    delete_student_permanently,
     reactivate_student,
     reject_student_change_request,
     submit_student_change_request,
@@ -94,6 +96,7 @@ def student_detail(request, student_id):
                 Capability.REQUEST_STUDENT_CHANGES
             ),
             "can_archive": request.user.has_capability(Capability.ARCHIVE_STUDENTS),
+            "can_delete": can_delete_student(request.user, student),
             "can_assign": request.user.has_capability(Capability.MANAGE_ASSIGNMENTS),
             "rooms": Room.objects.active() if request.user.has_capability(
                 Capability.MANAGE_ASSIGNMENTS
@@ -171,6 +174,34 @@ def student_reactivate(request, student_id):
     except (PermissionDenied, ValidationError) as exc:
         messages.error(request, _msg(exc))
     return redirect("students:detail", student_id=student_id)
+
+
+@login_required
+@require_capabilities(Capability.DELETE_STUDENTS)
+def student_delete(request, student_id):
+    """Permanent deletion. A dedicated confirmation page, not just a button
+    on the detail page - this has no undo, and it takes the student's whole
+    history with it, unlike archiving."""
+    student = get_object_or_404(
+        student_queryset_for_user(request.user, include_archived=True), pk=student_id
+    )
+    if not can_delete_student(request.user, student):
+        raise PermissionDenied("Ezt a diákot nem törölheted.")
+
+    if request.method == "POST":
+        try:
+            snapshot = delete_student_permanently(
+                student=student,
+                actor=request.user,
+                confirmation_username=request.POST.get("confirmation_username", ""),
+            )
+            messages.success(
+                request, f"{snapshot['full_name']} fiókja és előzményei véglegesen törölve."
+            )
+            return redirect("students:list")
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, _msg(exc))
+    return render(request, "students/delete_confirm.html", {"student": student})
 
 
 @login_required

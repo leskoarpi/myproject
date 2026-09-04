@@ -179,7 +179,8 @@ ROLE_CAPABILITIES = {
 
 # Capabilities an operator may hand out individually on top of a role.
 GRANTABLE_CAPABILITIES = sorted(
-    ALL_CAPABILITIES - {Capability.DELETE_ALL_DATA, Capability.DELETE_USERS}
+    ALL_CAPABILITIES
+    - {Capability.DELETE_ALL_DATA, Capability.DELETE_USERS, Capability.DELETE_STUDENTS}
 )
 
 

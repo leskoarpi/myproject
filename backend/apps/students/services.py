@@ -13,7 +13,7 @@ from apps.accounts.capabilities import Capability
 from apps.audit.services import AuditAction, model_snapshot, record_audit
 
 from .models import ChangeRequestStatus, StudentChangeRequest, StudentProfile
-from .selectors import can_edit_student, can_view_student, editable_fields_for
+from .selectors import can_delete_student, can_edit_student, can_view_student, editable_fields_for
 
 AUDITED_STUDENT_FIELDS = (
     "full_name",
@@ -127,6 +127,68 @@ def reactivate_student(*, student, actor):
         note="reactivated",
     )
     return student
+
+
+@transaction.atomic
+def delete_student_permanently(*, student, actor, confirmation_username):
+    """Hard-delete a student's account and every record that exists only to
+    describe them. Irreversible - unlike archiving (spec section 7), there is
+    no undo, and unlike ``apps.accounts.services.delete_user_permanently``
+    this also wipes their inspection, presence, room and pass-rule history,
+    not just the login. Admin-only (``Capability.DELETE_STUDENTS``), and
+    confirmed by the same typed-username pattern as staff account deletion.
+    """
+    if not can_delete_student(actor, student):
+        raise PermissionDenied("Ezt a diákot nem törölheted.")
+
+    user = student.user
+    if confirmation_username != user.username:
+        raise ValidationError("A megerősítéshez pontosan a felhasználónevet kell beírni.")
+
+    student = StudentProfile.objects.select_for_update().get(pk=student.pk)
+    user = type(user).objects.select_for_update().get(pk=user.pk)
+
+    snapshot = {
+        **model_snapshot(student, AUDITED_STUDENT_FIELDS),
+        "username": user.username,
+    }
+    student_id = student.pk
+
+    # These reference the student with PROTECT specifically so an ordinary
+    # StudentProfile.delete() elsewhere in the codebase can't silently take
+    # history down with it - a permanent deletion has to clear them by hand
+    # before the profile itself can go. Everything else hanging off the
+    # profile (current presence, pass rule, change requests, weekend stays
+    # and their checks) is already CASCADE and needs no help here.
+    from apps.inspections.models import EveningCheckResult, RoomCheckStudentResult
+    from apps.leave_permissions.models import PassRuleHistory
+    from apps.presence.models import PresenceEvent
+    from apps.rooms.models import RoomAssignment
+
+    removed = {}
+    for model in (
+        EveningCheckResult,
+        RoomCheckStudentResult,
+        PresenceEvent,
+        RoomAssignment,
+        PassRuleHistory,
+    ):
+        count, _ = model.objects.filter(student=student).delete()
+        removed[model._meta.label] = count
+
+    student.delete()
+    user.delete()
+
+    record_audit(
+        user=actor,
+        action=AuditAction.DELETE,
+        target_type="students.StudentProfile",
+        target_id=str(student_id),
+        target_repr=snapshot["full_name"],
+        old_value={**snapshot, "history_rows_removed": removed},
+        note="student account and history permanently deleted",
+    )
+    return snapshot
 
 
 @transaction.atomic

@@ -109,6 +109,18 @@ def editable_fields_for(user, student=None):
     return frozenset()
 
 
+def can_delete_student(user, student):
+    """Permanent deletion, unlike archiving, wipes the student's history too
+    (spec 7 is the reason archiving exists at all) - so it stays behind its
+    own capability, admin-only the same way ``DELETE_USERS`` is.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if not user.has_capability(Capability.DELETE_STUDENTS):
+        return False
+    return can_view_student(user, student)
+
+
 def can_view_sensitive(user, student=None):
     return bool(
         user
