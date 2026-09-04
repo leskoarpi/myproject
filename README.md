@@ -18,8 +18,12 @@ Fill in `DJANGO_SECRET_KEY` and `POSTGRES_PASSWORD` (both are required — the
 stack refuses to start without them), then:
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.local.yml up -d --build
 ```
+
+The `-f` matters: plain `docker-compose.yml` is the **server** stack, written
+for Dokploy — it publishes no host ports and expects Dokploy's network, so it
+will not run here. Every `docker compose` command below takes the same flag.
 
 The app is at <http://localhost>. Migrations, `collectstatic` and the
 reference-data seed run automatically on start.
@@ -32,11 +36,11 @@ something else already holds port 80 on the host, set `HTTP_PORT` in `.env`
 Load a development dataset:
 
 ```bash
-docker compose exec web python manage.py seed_reference_data --school-year 2026/2027
+docker compose -f docker-compose.local.yml exec web python manage.py seed_reference_data --school-year 2026/2027
 ```
 
 ```bash
-docker compose exec web python manage.py create_demo_data --students 45
+docker compose -f docker-compose.local.yml exec web python manage.py create_demo_data --students 45
 ```
 
 Demo accounts (password `demo-password-2025`): `admin`, `vezeto`, `portas`,
@@ -46,12 +50,11 @@ Demo accounts (password `demo-password-2025`): `admin`, `vezeto`, `portas`,
 Run the tests:
 
 ```bash
-docker compose exec web pytest
+docker compose -f docker-compose.local.yml exec web pytest
 ```
 
-To put it on a server, see [DOKPLOY.md](DOKPLOY.md) — the repository ships
-`docker-compose.dokploy.yml` for deployment through Dokploy, and the setup is
-UI work rather than SSH.
+To put it on a server, see [DOKPLOY.md](DOKPLOY.md). `docker-compose.yml` is
+already the Dokploy stack, so deployment is UI work rather than SSH.
 
 ---
 
@@ -401,7 +404,7 @@ an unprivileged user. `.env` is gitignored; no secret has a usable default.
 constraints):
 
 ```bash
-docker compose exec web pytest
+docker compose -f docker-compose.local.yml exec web pytest
 ```
 
 - **Unit** — presence transitions and the self-service switch, weekend date

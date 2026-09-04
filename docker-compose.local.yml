@@ -1,31 +1,22 @@
-# Deák Koli — Docker Compose for Dokploy.
+# Deák Koli — Docker Compose for local development.
 #
-# Point Dokploy's "Compose Path" at this file. It differs from the local
-# docker-compose.yml in exactly four ways, all of them about living behind
-# Dokploy's Traefik rather than owning the host:
+#     docker compose -f docker-compose.local.yml up -d --build
 #
-#   1. No top-level "name:" — Dokploy names the project itself.
-#   2. nginx uses "expose" instead of "ports". Traefik holds 80 and 443 on the
-#      host; publishing them here would collide with it.
-#   3. nginx joins the external "dokploy-network" so Traefik can reach it.
-#      Add the domain under the service's Domains tab (service: nginx,
-#      port: 80) and Dokploy writes the routing labels for you.
-#   4. Every service reads "env_file: .env" — the file Dokploy generates from
-#      the Environment tab. Without it, variables set in the UI land in that
-#      file and never reach the containers.
-#
-# No service sets container_name: Dokploy's logs and metrics rely on naming
-# the containers itself.
+# The server runs ./docker-compose.yml instead, which is written for Dokploy:
+# it publishes no host ports (Traefik owns 80/443) and joins Dokploy's
+# network. This one publishes port 80 so the app is reachable on localhost.
+
+name: deakkoli
 
 x-django-env: &django-env
-  DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.production}
-  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in the Environment tab}
-  DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
-  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?set DJANGO_ALLOWED_HOSTS to your domain}
-  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:?set DJANGO_CSRF_TRUSTED_ORIGINS to https://your-domain}
+  DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.development}
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
+  DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web}
+  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1}
   POSTGRES_DB: ${POSTGRES_DB:-deakkoli}
   POSTGRES_USER: ${POSTGRES_USER:-deakkoli}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the Environment tab}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
   POSTGRES_HOST: db
   POSTGRES_PORT: "5432"
   REDIS_URL: redis://redis:6379/0
@@ -37,7 +28,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-deakkoli}
       POSTGRES_USER: ${POSTGRES_USER:-deakkoli}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the Environment tab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -63,10 +54,12 @@ services:
     build:
       context: ./backend
       args:
-        INSTALL_DEV: ${INSTALL_DEV:-false}
-    # migrate, collectstatic and the reference-data seed all run on every
-    # start and are idempotent, so a Dokploy redeploy needs no extra step.
-    # "exec" hands PID 1 to gunicorn so a redeploy stops it gracefully.
+        INSTALL_DEV: ${INSTALL_DEV:-true}
+    # Every continuation line must sit at the *same* indentation as the first:
+    # a ">" scalar keeps the newline before any line indented further, which
+    # split this in two - gunicorn silently lost its timeout and both log
+    # flags, and the orphaned tail ran as a command of its own.
+    # "exec" hands PID 1 to gunicorn so stop/restart reaches it, not the shell.
     command:
       - sh
       - -c
@@ -77,9 +70,6 @@ services:
         exec gunicorn config.wsgi:application
         --bind 0.0.0.0:8000 --workers 3 --timeout 60
         --access-logfile - --error-logfile -
-    env_file:
-      - path: .env
-        required: false
     environment: *django-env
     volumes:
       - ./backend:/app
@@ -96,11 +86,8 @@ services:
     build:
       context: ./backend
       args:
-        INSTALL_DEV: ${INSTALL_DEV:-false}
+        INSTALL_DEV: ${INSTALL_DEV:-true}
     command: celery -A config worker --loglevel=info --concurrency=2
-    env_file:
-      - path: .env
-        required: false
     environment: *django-env
     volumes:
       - ./backend:/app
@@ -113,14 +100,12 @@ services:
     build:
       context: ./backend
       args:
-        INSTALL_DEV: ${INSTALL_DEV:-false}
-    # The schedule database goes in a volume rather than /app, which is the
-    # git checkout: Beat rewriting a tracked file there would make Dokploy's
-    # next pull conflict over a binary nobody edited.
+        INSTALL_DEV: ${INSTALL_DEV:-true}
+    # The schedule database lives in a volume, not in /app: /app is the git
+    # checkout mounted from the host, and Beat rewriting a tracked file there
+    # makes the next "git pull" on the server stop with a conflict over a
+    # binary nobody edited.
     command: celery -A config beat --loglevel=info --schedule=/var/lib/celery/celerybeat-schedule
-    env_file:
-      - path: .env
-        required: false
     environment: *django-env
     volumes:
       - ./backend:/app
@@ -132,24 +117,15 @@ services:
 
   nginx:
     image: nginx:1.27-alpine
-    # No host ports: Traefik owns 80/443 and reaches this over the shared
-    # network. Attach the domain in Dokploy (service nginx, port 80).
-    expose:
-      - "80"
+    ports:
+      - "${HTTP_PORT:-80}:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - static_volume:/app/staticfiles:ro
       - media_volume:/app/media:ro
     depends_on:
       - web
-    networks:
-      - default
-      - dokploy-network
     restart: unless-stopped
-
-networks:
-  dokploy-network:
-    external: true
 
 volumes:
   postgres_data:

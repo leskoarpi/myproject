@@ -1,8 +1,10 @@
 # Deploying with Dokploy
 
-The repository ships a compose file written for Dokploy:
-**`docker-compose.dokploy.yml`**. Everything below is UI work — no SSH, and
-nothing to edit in the code.
+`docker-compose.yml` in this repository **is** the Dokploy stack — that is
+the default file name Dokploy looks for, so there is no path to configure.
+Local development uses `docker-compose.local.yml` instead.
+
+Everything below is UI work: no SSH, and nothing to edit in the code.
 
 ---
 
@@ -14,7 +16,10 @@ In Dokploy: **Create Service → Compose**, pick the GitHub repository and the
 | Field | Value |
 | --- | --- |
 | Compose Type | Docker Compose |
-| Compose Path | `./docker-compose.dokploy.yml` |
+| Compose Path | leave as the default `./docker-compose.yml` |
+
+If you set that field to anything earlier, clear it back to the default — the
+server stack now lives at `./docker-compose.yml`.
 
 ## 2. Environment
 
@@ -32,8 +37,8 @@ POSTGRES_PASSWORD=<paste a different long random value>
 POSTGRES_DB=deakkoli
 POSTGRES_USER=deakkoli
 
-DJANGO_ALLOWED_HOSTS=koli.example.hu
-DJANGO_CSRF_TRUSTED_ORIGINS=https://koli.example.hu
+DJANGO_ALLOWED_HOSTS=dfkk.hu,www.dfkk.hu
+DJANGO_CSRF_TRUSTED_ORIGINS=https://dfkk.hu,https://www.dfkk.hu
 ```
 
 Generate each secret separately — run this twice and use a different value
