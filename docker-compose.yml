@@ -88,8 +88,10 @@ services:
       - path: .env
         required: false
     environment: *django-env
+    # No source mount: the image already contains the code, built from this
+    # repository. Mounting ./backend over /app would make what runs depend on
+    # a host directory instead of the image Dokploy just built.
     volumes:
-      - ./backend:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     expose:
@@ -109,8 +111,6 @@ services:
       - path: .env
         required: false
     environment: *django-env
-    volumes:
-      - ./backend:/app
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -130,7 +130,6 @@ services:
         required: false
     environment: *django-env
     volumes:
-      - ./backend:/app
       - celery_data:/var/lib/celery
     depends_on:
       db: {condition: service_healthy}
