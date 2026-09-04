@@ -36,11 +36,21 @@ DJANGO_ALLOWED_HOSTS=koli.example.hu
 DJANGO_CSRF_TRUSTED_ORIGINS=https://koli.example.hu
 ```
 
-Generate each secret separately — locally, or in any terminal:
+Generate each secret separately — run this twice and use a different value
+for each. `LC_ALL=C` is required: without it, macOS `tr` reads `/dev/urandom`
+as UTF-8 text and fails with "Illegal byte sequence".
 
 ```bash
-tr -dc 'A-Za-z0-9_-' < /dev/urandom | head -c 48; echo
+LC_ALL=C tr -dc 'A-Za-z0-9_-' < /dev/urandom | head -c 48; echo
 ```
+
+`openssl rand -base64 48 | tr -d '\n=+/' | head -c 48` works too and has no
+locale caveat.
+
+Keep a copy of `POSTGRES_PASSWORD` somewhere safe. PostgreSQL bakes it into
+the data volume the first time it starts and ignores it afterwards, so
+changing it later does not update the database — it locks the app out of it.
+`DJANGO_SECRET_KEY` can be rotated freely; it only invalidates open sessions.
 
 Two rules worth remembering, because mixing them up is the classic failure:
 `DJANGO_ALLOWED_HOSTS` takes **bare hostnames**, comma-separated, no scheme.
