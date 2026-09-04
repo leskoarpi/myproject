@@ -150,6 +150,13 @@ the browser discards the session. Either finish the certificate, or set
 `DJANGO_SECURE_COOKIES=false` in the Environment tab while you sort it out,
 and remember to remove it afterwards.
 
+**`ERR_TOO_MANY_REDIRECTS` in the browser.** Django is being told the request
+arrived over plain http while `SECURE_SSL_REDIRECT` is on, so it redirects to
+https, Traefik terminates TLS and forwards http again, and round it goes. The
+nginx config passes Traefik's `X-Forwarded-Proto` straight through to avoid
+exactly this; if you see it again, check that `nginx/default.conf` still sets
+`X-Forwarded-Proto $forwarded_proto` and not `$scheme`.
+
 **`502` from Traefik.** The `nginx` service is not up, or the domain points at
 the wrong service. Check the **Logs** tab for `nginx` and `web`, and confirm
 the domain targets `nginx` on port `80`.
